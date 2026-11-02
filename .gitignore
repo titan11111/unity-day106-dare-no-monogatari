@@ -16,3 +16,7 @@
 **/*.userprefs
 **/*.tmp
 **/*.log
+
+# GitHub Pages (HTML版)
+!/index.html
+!/.nojekyll
