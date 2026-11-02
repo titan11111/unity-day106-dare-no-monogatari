@@ -1,0 +1,38 @@
+{
+  "buildId": "day106-5c272b1288af",
+  "sourceCommit": "5c272b1288afcb6bd2e23caea8b26e3234c9d1d8",
+  "createdAtUtc": "2026-11-02T21:58:13+00:00",
+  "features": [
+    "unity-webgl-port",
+    "generative-bgm-onaudiofilterread",
+    "cjk-font-bundled-mplus1p",
+    "hori-switch-controller-input",
+    "world-region-name-banner",
+    "pulun-silhouette-redesign"
+  ],
+  "verification": {
+    "unityEditorChecks": "batchmode-compile-and-webgl-build-passed-0-errors",
+    "browserSmokeTest": "not-run-this-pass",
+    "physicalSwitchController": "not-tested"
+  },
+  "files": {
+    ".nojekyll": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "Build/WebGL.data": "c62145c9194027b771f914a239a3a9d977ba96fdd2fa8facae5f3346d4c0c79d",
+    "Build/WebGL.framework.js": "f58f5a7153d7b17ed189543b6d1cecb32debd892f7ed5a4fff308db2b94e9b07",
+    "Build/WebGL.loader.js": "b453a8ab249dbea54cc0cfa6fd73867b88ef9db54dfb6b608e9827f40373fb8a",
+    "Build/WebGL.wasm": "b60029605ae96aa81ede7f406dc90bead5abcf3d7db086e701b860512066d810",
+    "TemplateData/MemoryProfiler.png": "0ce87be20d0c24ab6cb73b57de2004da261cc2a641e69319c6ae3fe11fc85483",
+    "TemplateData/favicon.ico": "9c13beb90ee8f70580d52a21d5233970d1c89e71e4a34a462c22610941c3c77f",
+    "TemplateData/fullscreen-button.png": "21221581673a54b8139d408d4a3f8d2b879e86827d4b6fc53b995ff7a99ee3e9",
+    "TemplateData/progress-bar-empty-dark.png": "bbee7131afe8a3365906240d89184dc86234c119467f390bc4bc6802328fdb4d",
+    "TemplateData/progress-bar-empty-light.png": "143696c060ad43d6c30f19ff5f49000927a139a2a1e4c9f45fafaa2b90d7d2be",
+    "TemplateData/progress-bar-full-dark.png": "3306a6244dcb3926fca38a28e3ced589df8ff1beed955eb17c0bbf01c918bc62",
+    "TemplateData/progress-bar-full-light.png": "12395ea785480c5cdf12fade6e6cbf49666d5bb1cef7240c113dbcba6bdc5c87",
+    "TemplateData/style.css": "8e3625e108a61dcd1d31303376d9e02d7bdc08921d254e8f4359b892b3825caa",
+    "TemplateData/unity-logo-dark.png": "c1b72d26c096487dabc948b54bc203f8dac7ed4e3f5733918798e858acb4b159",
+    "TemplateData/unity-logo-light.png": "002990aea0d946833cadc1519d5b7e50a4570bd537a0517dd79a59d3eec84da7",
+    "TemplateData/unity-logo-title-footer.png": "9e8b3bdb67c2446d16362fe59449d892100931dbbadfe6a9d923a4142b57a79f",
+    "TemplateData/webmemd-icon.png": "c56f5494640cedda273aad38d58e6ab9da625d5b3f4d875c0ff92c6192a569c2",
+    "index.html": "509bac9fc3b89a59fde7c7a5f84cef303537dfb0d3f5fd666218d714c3ce8abe"
+  }
+}
