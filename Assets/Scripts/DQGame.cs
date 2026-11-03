@@ -573,7 +573,7 @@ namespace DareNoMonogatari
             yield return Say("めのまえが まっくらに なった……");
             gold /= 2; pc.hp = pc.mhp; pc.mp = pc.mmp;
             var h = maps[home]; yield return WarpTo(home, h.sx, h.sy, false); yield return Fade(0f, .5f);
-            yield return Say(pc.name + "よ、ちからつきて しまうとは なさけない！\nおかねは はんぶんに なってしまった……。");
+            yield return Say("……はっと めを さました。\nだれかが ここまで はこんで くれたらしい。\nふところの おかねが はんぶんに へっている……。");
             busy = false;
         }
 
