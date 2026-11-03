@@ -20,3 +20,6 @@
 # GitHub Pages (HTML版)
 !/index.html
 !/.nojekyll
+
+# HTML版ソース
+!/dq_source/

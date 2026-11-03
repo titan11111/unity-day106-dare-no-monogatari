@@ -7,32 +7,76 @@
 *{-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 html,body{margin:0;height:100%;background:#000;color:#fff;overflow:hidden;overscroll-behavior:none;touch-action:none;font-family:'DotGothic16',monospace}
 body{position:fixed;inset:0;width:100%}
-#app{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;height:100dvh;gap:4px}
-canvas{width:min(100vw,calc((100dvh - 196px)*512/448));max-width:640px;background:#000;display:block;touch-action:none}
-#ctl{width:min(100vw,640px);display:flex;justify-content:space-between;align-items:center;padding:0 14px calc(6px + env(safe-area-inset-bottom));box-sizing:border-box;height:176px;touch-action:none}
-#dp{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px);gap:3px;padding:6px;border-radius:50%;background:radial-gradient(circle,#ffffff18,#0000 72%);touch-action:none}
-#ab{display:grid;grid-template-columns:auto auto;gap:8px 14px;align-items:end;justify-items:center}
-button{background:#1a1f3a;color:#fff;border:3px solid #fff;border-radius:14px;font:inherit;font-size:22px;touch-action:none;padding:0;transition:transform .05s}
-button.on{background:#6a7cff;transform:scale(.94)}
-#mute{position:fixed;top:max(6px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));width:36px;height:36px;border-width:2px;border-radius:50%;font-size:16px;opacity:.7;z-index:5}
-#dp button{width:54px;height:54px;pointer-events:none}
-#ab button{width:80px;height:80px;border-radius:50%;font-size:24px}
-#ab button.b{margin-bottom:18px}
-#ab button.run{grid-column:1/3;order:-1;width:auto;height:34px;border-radius:17px;font-size:15px;padding:0 18px;border-width:2px}
+/* ===== 画面レイアウト（縦持ち）：上にゲーム画面、残りぜんぶを操作エリアに使う ===== */
+#app{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:100vh;height:100dvh;padding-top:env(safe-area-inset-top);box-sizing:border-box}
+canvas{width:min(100vw,640px,calc((100dvh - 230px - env(safe-area-inset-top))*512/448));background:#000;display:block;touch-action:none;flex:none}
+/* 操作エリア。位置・大きさは JS(layoutCtl) が --u(=Aボタンの直径) を決めて、そこから全部を割り出す */
+#ctl{--u:80px;--pad:12px;position:relative;flex:1 1 auto;width:min(100vw,640px);min-height:190px;touch-action:none;
+  --dp:calc(var(--u)*2.3);--B:calc(var(--u)*.86);--hit:calc(var(--u)*.09);--op:.82}
+button,.pad{font:inherit;touch-action:none}
+button{background:#1a1f3a;color:#fff;border:3px solid #fff;border-radius:14px;font-size:22px;padding:0;transition:transform .05s,background .05s}
+button.on,.pad.on{background:#6a7cff;transform:scale(.94)}
+/* 十字キー：見た目は丸いパッド。タッチ判定は #dpz（見た目より広い）が受け持つ */
+#dpz{position:absolute;touch-action:none;z-index:2}
+#dp{position:absolute;left:calc(env(safe-area-inset-left) + var(--pad));bottom:calc(env(safe-area-inset-bottom) + var(--pad));width:var(--dp);height:var(--dp);
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:calc(var(--u)*.04);box-sizing:border-box;padding:calc(var(--u)*.08);
+  border-radius:50%;background:radial-gradient(circle,#ffffff26,#ffffff0d 62%,#0000 74%);box-shadow:inset 0 0 0 2px #ffffff30;opacity:var(--op);pointer-events:none;z-index:1}
+#dp button{width:100%;height:100%;border-radius:calc(var(--u)*.2);border-width:2px;font-size:calc(var(--u)*.3);pointer-events:none;display:flex;align-items:center;justify-content:center}
+#dp button.on{background:#8fa0ff;box-shadow:0 0 calc(var(--u)*.25) #8fa0ff;transform:none}
+/* A / B / はしる：親指の弧に合わせて ずらして配置（Bは左うえ、Aは右した、はしるは左した） */
+#ab{position:absolute;right:calc(env(safe-area-inset-right) + var(--pad));bottom:calc(env(safe-area-inset-bottom) + var(--pad) + var(--u)*.3);
+  width:calc(var(--u) + var(--B) + var(--u)*.14);height:calc(var(--B) + var(--u)*.5);opacity:var(--op);z-index:2}
+#ab button{position:absolute;border-radius:50%;font-size:calc(var(--u)*.3)}
+#ab button::after{content:'';position:absolute;inset:calc(var(--hit)*-1);border-radius:50%}   /* 見た目より広い当たり判定 */
+#ab button[data-k=a]{right:0;bottom:0;width:var(--u);height:var(--u);background:#2a2f66}
+#ab button[data-k=b]{left:0;bottom:calc(var(--u)*.5);width:var(--B);height:var(--B)}
+#ab button.run{left:0;bottom:0;width:var(--B);height:calc(var(--u)*.38);border-radius:calc(var(--u)*.19);font-size:max(11px,calc(var(--u)*.17));border-width:2px;line-height:1;white-space:nowrap;overflow:visible}
+#ab button.run.on{background:#e0a030;color:#000;transform:none}
+#ctl.swap #dp{left:auto;right:calc(env(safe-area-inset-right) + var(--pad))}
+#ctl.swap #ab{right:auto;left:calc(env(safe-area-inset-left) + var(--pad))}
+/* 上のほうのボタン */
+.top{position:fixed;top:max(6px,env(safe-area-inset-top));width:36px;height:36px;border-width:2px;border-radius:50%;font-size:16px;opacity:.7;z-index:6}
+#mute{right:max(8px,env(safe-area-inset-right))}
+#cfgb{right:calc(max(8px,env(safe-area-inset-right)) + 44px)}
+/* 操作せってい */
+#cfgp,#diag{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;background:#000a}
+#cfgp.open,#diag.open{display:flex}
+#diag{z-index:10}
+#diag pre{margin:0 0 10px;font:13px/1.55 monospace;white-space:pre-wrap;word-break:break-all;color:#dfe6ff;font-family:'DotGothic16',monospace}
+#padb{position:fixed;display:none;align-items:center;justify-content:center;top:max(6px,env(safe-area-inset-top));right:calc(max(8px,env(safe-area-inset-right)) + 88px);width:36px;height:36px;box-sizing:border-box;border:2px solid #fff;border-radius:50%;background:#1a1f3a;font-size:16px;opacity:.75;z-index:6;pointer-events:none}
+#padb.act{background:#6a7cff;opacity:1}
+#padmsg{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:#000c;text-align:center;font-size:18px;line-height:1.7;padding:24px;box-sizing:border-box}
+#padmsg.open{display:flex}
+#cfgp .padmap{width:100%;min-height:44px;margin:0 0 6px;font-size:14px;border-width:2px;border-radius:10px}
+#cfgp .box,#diag .box{width:min(92vw,420px);max-height:92dvh;overflow:auto;background:#0b0f2a;border:3px solid #fff;border-radius:12px;padding:14px;box-sizing:border-box}
+#cfgp h2,#diag h2{margin:0 0 10px;font-size:18px;text-align:center;font-weight:normal}
+#cfgp .row{margin:0 0 10px}
+#cfgp .row>span{display:block;font-size:13px;margin:0 0 4px;color:#cfd6ff}
+#cfgp .opts{display:flex;gap:6px}
+#cfgp .opts button{flex:1;min-height:44px;font-size:15px;border-width:2px;border-radius:10px}
+#cfgp .opts button.sel{background:#6a7cff}
+#cfgp .close,#diag .close{width:100%;min-height:48px;font-size:17px;margin-top:4px}
 @media (orientation:landscape) and (max-height:520px){
- #app{flex-direction:row}
+ #app{flex-direction:row;justify-content:center;align-items:center;padding-top:0}
  canvas{height:100dvh;width:calc(100dvh*512/448);max-width:none}
- #ctl{display:contents}
- #dp{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:10px;opacity:.78}
- #ab{position:fixed;right:max(14px,env(safe-area-inset-right));bottom:10px;opacity:.85}
+ #ctl{position:fixed;inset:0;width:auto;min-height:0;pointer-events:none;z-index:3;--pad:10px}
+ #ctl #dpz,#ctl #ab{pointer-events:auto}
+ #dp{bottom:calc(env(safe-area-inset-bottom) + 8px)}
+ #ab{bottom:calc(env(safe-area-inset-bottom) + 8px + var(--u)*.3)}
 }
 </style></head><body>
-<button id="mute" aria-label="BGM">🔊</button>
+<button id="mute" class="top" aria-label="BGM">🔊</button>
+<button id="cfgb" class="top" aria-label="操作せってい">⚙</button>
+<div id="cfgp"><div class="box"><h2>そうさ せってい</h2><div id="cfgrows"></div><button class="close" id="cfgx">とじる</button></div></div>
+<div id="padb" aria-hidden="true">🎮</div>
+<div id="padmsg"><div>🎮 コントローラーが きれたよ<br>つなぎなおして ボタンを おすか、<br>この がめんを タッチすると つづけられるよ</div></div>
+<div id="diag"><div class="box"><h2>コントローラー しんだん</h2><pre id="diagt"></pre><button class="close" id="diagx">とじる</button></div></div>
 <div id="app">
 <canvas id="c"></canvas>
 <div id="ctl">
 <div id="dp"><span></span><button data-k="u">▲</button><span></span><button data-k="l">◀</button><span></span><button data-k="r">▶</button><span></span><button data-k="d">▼</button><span></span></div>
-<div id="ab"><button class="run" data-k="run">はしる OFF</button><button class="b" data-k="b">B</button><button data-k="a">A</button></div>
+<div id="dpz"></div>
+<div id="ab"><button class="run" data-k="run">はしる</button><button class="b" data-k="b">B</button><button data-k="a">A</button></div>
 </div></div>
 <script>
 'use strict';
@@ -45,7 +89,7 @@ const keys={},pressed={},RUN={t:false,h:false};
 const KM={ArrowUp:'u',ArrowDown:'d',ArrowLeft:'l',ArrowRight:'r',w:'u',s:'d',a:'l',d:'r',Enter:'a',z:'a',' ':'a',x:'b',Escape:'b',Backspace:'b'};
 addEventListener('keydown',e=>{if(e.key==='Shift'){RUN.h=true;return;}const m=KM[e.key];if(!m)return;e.preventDefault();if(!keys[m])pressed[m]=true;keys[m]=true;});
 addEventListener('keyup',e=>{if(e.key==='Shift'){RUN.h=false;return;}const m=KM[e.key];if(m)keys[m]=false;});
-const vib=ms=>{try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
+const vib=ms=>{try{if(window.UICFG&&UICFG.vib===false)return;navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
 // --- Gamepad (Switch Pro / Joy-Con / any standard pad). Nintendo layout(入れ替え済み): B=bottom(0)=決定, A=right(1)=キャンセル ---
 const PAD={u:0,d:0,l:0,r:0,a:0,b:0,run:0};let padOn=false;
 const PADINFO={ok:true,err:'',id:'',mapping:'',btn:[],axes:[],show:false};
@@ -53,6 +97,14 @@ function readPads(){ // iframe等でGamepad APIが禁止されていても例外
   try{const gps=navigator.getGamepads?navigator.getGamepads():[];PADINFO.ok=!!navigator.getGamepads;return gps||[];}
   catch(e){PADINFO.ok=false;PADINFO.err=String(e&&e.name||e);return [];}
 }
+const PMAP_DEF={a:[0,2,8],b:[1,3,9],run:[4,5,6,7]};
+let PCAP=null;
+function pmap(k){const m=window.UICFG&&UICFG.pmap&&UICFG.pmap[k];return Array.isArray(m)&&m.length?m:PMAP_DEF[k];}
+function padUI(any,n){const b=document.getElementById('padb');if(!b)return;
+  if(any!==b._on){b._on=any;b.style.display=any?'flex':'none';}
+  if(any)b.classList.toggle('act',!!(n.u||n.d||n.l||n.r||n.a||n.b||n.run));}
+function padLost(){if((typeof G!=="undefined"&&G.paused))return;G.paused=true;const e=document.getElementById('padmsg');if(e)e.classList.add('open');}
+function padResume(){if(!((typeof G!=="undefined"&&G.paused)))return;G.paused=false;const e=document.getElementById('padmsg');if(e)e.classList.remove('open');for(const k in keys)keys[k]=false;clearKeys();}
 function pollPad(){
   const gps=readPads();let n={u:0,d:0,l:0,r:0,a:0,b:0,run:0},any=false;
   for(const g of gps){if(!g||!g.connected)continue;any=true;const B=i=>g.buttons[i]&&(g.buttons[i].pressed||g.buttons[i].value>.5);
@@ -60,22 +112,28 @@ function pollPad(){
     if(B(12)||(!big&&ay<-.5))n.u=1;if(B(13)||(!big&&ay>.5))n.d=1;
     if(B(14)||(big&&ax<-.5))n.l=1;if(B(15)||(big&&ax>.5))n.r=1;
     // 非standardマッピング(Joy-Con/一部のProコン)は十字キーが axes[9] のハット値で来る
-    if(g.mapping!=='standard'&&g.axes.length>9){const h=g.axes[9];
+    if(g.axes.length>9&&!(n.u||n.d||n.l||n.r)){const h=g.axes[9];
       if(h<=1.05){const d=Math.round((h+1)*3.5)%8;if([7,0,1].includes(d))n.u=1;if([1,2,3].includes(d))n.r=1;if([3,4,5].includes(d))n.d=1;if([5,6,7].includes(d))n.l=1;}}
-    if(B(0)||B(2)||B(8))n.a=1;      // B / Y / -  ...決定（A/B入れ替え済み）
-    if(B(1)||B(3)||B(9))n.b=1;      // A / X / +  ...キャンセル・メニュー（A/B入れ替え済み）
-    if(B(4)||B(5)||B(6)||B(7))n.run=1; // L R ZL ZR ...はしる
+    // ボタン割り当て(⚙で変更可)。初期値: 決定=B/Y/−(0,2,8) メニュー=A/X/+(1,3,9) はしる=L/R/ZL/ZR(4-7)
+    const hit=ks=>ks.some(i=>B(i));
+    if(hit(pmap('a')))n.a=1;if(hit(pmap('b')))n.b=1;if(hit(pmap('run')))n.run=1;
+    const pv=PADINFO.prev||(PADINFO.prev=[]);
+    g.buttons.forEach((b,i)=>{const on=!!(b&&(b.pressed||b.value>.5));if(on&&!pv[i]){PADINFO.last=i;if(PCAP){const f=PCAP;PCAP=null;try{f(i);}catch(e){}}}pv[i]=on;});
     PADINFO.id=(g.id||'').slice(0,40);PADINFO.mapping=g.mapping||'(none)';
     PADINFO.btn=g.buttons.map((b,i)=>b&&(b.pressed||b.value>.5)?i:-1).filter(i=>i>=0);PADINFO.axes=g.axes.map(v=>Math.round(v*10)/10);
     if(PADINFO.btn.length||n.u||n.d||n.l||n.r){try{bgmUnlock();}catch(e){}}  // コントローラー操作でもBGMを開始
   }
+  if(PCAP){n={u:0,d:0,l:0,r:0,a:0,b:0,run:0};}   // 割り当て変更中は ゲームへ入力しない
+  padUI(any,n);
   if(any&&!padOn){padOn=true;try{window.onPad&&window.onPad();}catch(e){}}
   if(!any&&padOn){padOn=false;PADINFO.id='';}
   for(const k of['u','d','l','r','a','b']){if(n[k]&&!PAD[k]){if(!keys[k])pressed[k]=true;keys[k]=true;}else if(!n[k]&&PAD[k])keys[k]=false;PAD[k]=n[k];}
   RUN.p=n.run;
 }
-addEventListener('gamepadconnected',e=>{try{window.onPad&&window.onPad(e.gamepad&&e.gamepad.id);}catch(_){}});
-addEventListener('keydown',e=>{if(e.key==='p'||e.key==='P')PADINFO.show=!PADINFO.show;});
+addEventListener('gamepadconnected',e=>{try{window.onPad&&window.onPad(e.gamepad&&e.gamepad.id);padResume();}catch(_){}});
+addEventListener('gamepaddisconnected',()=>{try{if(readPads().some(g=>g&&g.connected))return;if(G.mode==='map'||G.mode==='battle'||G.mode==='select')padLost();}catch(_){}});
+addEventListener('keydown',e=>{if(G.paused){padResume();return;}if(e.key==='p'||e.key==='P'){window.padDiag&&padDiag();}});
+document.addEventListener('pointerdown',()=>{if((typeof G!=="undefined"&&G.paused))padResume();},true);
 // --- touch hardening: no double-tap zoom, no pinch, no scroll / pull-to-refresh, no long-press menu ---
 (()=>{let last=0;
   document.addEventListener('touchend',e=>{const n=Date.now();if(n-last<400)e.preventDefault();last=n;},{passive:false});
@@ -83,28 +141,105 @@ addEventListener('keydown',e=>{if(e.key==='p'||e.key==='P')PADINFO.show=!PADINFO
   document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
   for(const ev of['gesturestart','gesturechange','gestureend','dblclick','contextmenu','selectstart','dragstart'])document.addEventListener(ev,e=>e.preventDefault());
 })();
-// --- D-pad: one touch surface; slide the thumb to change direction (with hysteresis) ---
-(()=>{const dp=document.getElementById('dp');if(!dp)return;let pid=null,cur=null;
+// ===== 操作UI：十字キー(広い判定) / A・B(広い当たり判定) / 画面に合わせた自動最大サイズ / 設定(⚙) =====
+var UICFG=Object.assign({size:2,swap:false,wide:true,op:.82,vib:true},(()=>{try{return JSON.parse(localStorage.getItem('dq_ui')||'{}')||{};}catch(e){return{};}})());
+(()=>{
+  const $=id=>document.getElementById(id);
+  const ctl=$('ctl'),dp=$('dp'),ab=$('ab'),dpz=$('dpz');
+  if(!ctl||!dp||!ab||!dpz)return;
+  const SIZES=[.72,.86,1],landQ=matchMedia('(orientation:landscape) and (max-height:520px)');
+  const save=()=>{try{localStorage.setItem('dq_ui',JSON.stringify(UICFG));}catch(e){}};
+  // --- レイアウト：Aボタンの直径 u を「いま使える最大」に決め、ほかは全部 u から割り出す ---
+  function layout(){
+    const vw=innerWidth,vh=innerHeight,land=landQ.matches;
+    ctl.classList.toggle('swap',!!UICFG.swap);ctl.style.setProperty('--op',UICFG.op);
+    const r0=ctl.getBoundingClientRect();let u;
+    if(land){const cw=vh*512/448,g=(vw-cw)/2;u=Math.min(Math.max((g-18)/2.3,vh*.22),vh*.27);}   // よこ持ち：画面の左右のあきスペースにちょうど収める
+    else{u=Math.min((r0.width-28)/4.45,(r0.height-20)/2.3,130);}                                  // たて持ち：ゲーム画面の下ぜんぶが操作エリア
+    u=Math.max(40,Math.floor(u*(SIZES[UICFG.size]||1)));ctl.style.setProperty('--u',u+'px');
+    // 十字キーのタッチ判定ゾーン：見た目より広い（ひろい=操作エリアの片側ぜんぶ / ふつう=見た目+15%）
+    const rc=ctl.getBoundingClientRect(),rd=dp.getBoundingClientRect(),ra=ab.getBoundingClientRect(),cw=rc.width,ch=rc.height,D=rd.width;
+    let x0,x1,y0,y1;
+    if(UICFG.wide){
+      if(land){y0=Math.max(0,rd.top-rc.top-D*.5);y1=ch;
+        if(!UICFG.swap){x0=0;x1=Math.min(rd.right-rc.left+D*.3,ra.left-rc.left-6);}else{x1=cw;x0=Math.max(rd.left-rc.left-D*.3,ra.right-rc.left+6);}}
+      else{y0=0;y1=ch;if(!UICFG.swap){x0=0;x1=ra.left-rc.left-6;}else{x1=cw;x0=ra.right-rc.left+6;}}
+    }else{x0=rd.left-rc.left-D*.15;x1=rd.right-rc.left+D*.15;y0=rd.top-rc.top-D*.15;y1=rd.bottom-rc.top+D*.15;}
+    Object.assign(dpz.style,{left:x0+'px',top:y0+'px',width:Math.max(0,x1-x0)+'px',height:Math.max(0,y1-y0)+'px'});
+  }
+  // --- 十字キー：1本の指でスライドして向きを変える（角度で判定。ゾーンのどこを触ってもOK） ---
+  let pid=null,cur=null;
   const set=k=>{if(k===cur)return;if(cur)keys[cur]=false;cur=k;if(k){if(!keys[k])pressed[k]=true;keys[k]=true;vib(5);}
     dp.querySelectorAll('[data-k]').forEach(b=>b.classList.toggle('on',b.dataset.k===k));};
   const calc=e=>{const r=dp.getBoundingClientRect(),x=e.clientX-(r.left+r.width/2),y=e.clientY-(r.top+r.height/2),R=r.width/2;
-    if(Math.hypot(x,y)<R*.16)return null;const ax=Math.abs(x),ay=Math.abs(y);
+    if(Math.hypot(x,y)<R*.12)return null;const ax=Math.abs(x),ay=Math.abs(y);
     const horiz=cur==='l'||cur==='r',vert=cur==='u'||cur==='d';
-    let h=ax>=ay;if(horiz&&ax>=ay*.62)h=true;else if(vert&&ay>=ax*.62)h=false;
+    let h=ax>=ay;if(horiz&&ax>=ay*.62)h=true;else if(vert&&ay>=ax*.62)h=false;   // ななめは 今の向きを優先(ヒステリシス)
     return h?(x<0?'l':'r'):(y<0?'u':'d');};
-  dp.addEventListener('pointerdown',e=>{e.preventDefault();pid=e.pointerId;try{dp.setPointerCapture(pid);}catch(_){}set(calc(e));});
-  dp.addEventListener('pointermove',e=>{if(e.pointerId===pid)set(calc(e));});
+  dpz.addEventListener('pointerdown',e=>{e.preventDefault();if(pid!==null)return;pid=e.pointerId;try{dpz.setPointerCapture(pid);}catch(_){}set(calc(e));});
+  dpz.addEventListener('pointermove',e=>{if(e.pointerId===pid)set(calc(e));});
   const up=e=>{if(e.pointerId===pid){pid=null;set(null);}};
-  dp.addEventListener('pointerup',up);dp.addEventListener('pointercancel',up);dp.addEventListener('lostpointercapture',up);
+  dpz.addEventListener('pointerup',up);dpz.addEventListener('pointercancel',up);dpz.addEventListener('lostpointercapture',up);
+  document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);   // 取りこぼし防止(キャプチャが外れても離したら必ず解除)
+  // --- A / B / はしる：マルチタッチ、広い当たり判定(CSSの::after)、指が外へずれても押しっぱなし維持 ---
+  ab.querySelectorAll('[data-k]').forEach(b=>{
+    const k=b.dataset.k;
+    if(k==='run'){b.addEventListener('pointerdown',e=>{e.preventDefault();RUN.t=!RUN.t;b.classList.toggle('on',RUN.t);b.textContent=RUN.t?'はしる ON':'はしる';vib(8);});return;}
+    const on=e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId);}catch(_){}if(!keys[k])pressed[k]=true;keys[k]=true;b.classList.add('on');vib(8);};
+    const off=e=>{e.preventDefault();keys[k]=false;b.classList.remove('on');};
+    b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('lostpointercapture',off);
+  });
+  // --- 入力が残りっぱなしにならないように：画面を離れる/ブラウザ復帰/回転のとき全部リリース ---
+  const rel=()=>{pid=null;set(null);for(const k in keys)keys[k]=false;ab.querySelectorAll('button:not(.run)').forEach(b=>b.classList.remove('on'));};
+  addEventListener('blur',rel);addEventListener('pagehide',rel);addEventListener('orientationchange',rel);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)rel();});
+  // --- そうさ せってい(⚙) ---
+  const OPTS=[
+    {t:'ボタンの おおきさ',k:'size',o:[['小',0],['中',1],['大(さいだい)',2]]},
+    {t:'ボタンの はいち',k:'swap',o:[['みぎきき',false],['ひだりきき',true]]},
+    {t:'十字キーの タッチはんい',k:'wide',o:[['ひろい',true],['ふつう',false]]},
+    {t:'ボタンの こさ',k:'op',o:[['うすい',.55],['ふつう',.82],['こい',1]]},
+    {t:'しんどう',k:'vib',o:[['あり',true],['なし',false]]}];
+  const cfgp=$('cfgp'),rows=$('cfgrows');
+  function render(){rows.innerHTML='';
+    for(const r of OPTS){const row=document.createElement('div');row.className='row';row.innerHTML='<span>'+r.t+'</span><div class="opts"></div>';
+      const box=row.lastChild;
+      for(const [lab,val] of r.o){const b=document.createElement('button');b.textContent=lab;if(UICFG[r.k]===val)b.className='sel';
+        b.addEventListener('pointerdown',e=>{e.preventDefault();UICFG[r.k]=val;save();layout();render();vib(10);});box.appendChild(b);}
+      rows.appendChild(row);}
+    const sec=document.createElement('div');sec.className='row';sec.innerHTML='<span>🎮 コントローラー（ホリコンなど）</span>';
+    const names={a:'決定',b:'メニュー・もどる',run:'はしる'};
+    for(const k of['a','b','run']){const bt=document.createElement('button');bt.className='padmap';bt.textContent=names[k]+'：ボタン '+pmap(k).join('・')+'（おして へんこう）';
+      bt.addEventListener('pointerdown',e=>{e.preventDefault();bt.textContent=names[k]+'：コントローラーの ボタンを おしてね…';PCAP=i=>{UICFG.pmap=Object.assign({},UICFG.pmap||{},{[k]:[i]});save();render();};});sec.appendChild(bt);}
+    const rs=document.createElement('button');rs.className='padmap';rs.textContent='わりあてを もとに もどす';rs.addEventListener('pointerdown',e=>{e.preventDefault();PCAP=null;delete UICFG.pmap;save();render();});sec.appendChild(rs);
+    const dg=document.createElement('button');dg.className='padmap';dg.textContent='コントローラー しんだん を ひらく';dg.addEventListener('pointerdown',e=>{e.preventDefault();open(false);padDiag();});sec.appendChild(dg);
+    rows.appendChild(sec);}
+  const open=o=>{if(!o)PCAP=null;cfgp.classList.toggle('open',o);if(o)render();};
+  // --- コントローラー しんだん(P キー / ⚙から) ---
+  const diag=$('diag'),dt=$('diagt');let dtm=null;
+  function diagText(){const g=(readPads().filter(x=>x&&x.connected))[0];
+    const yn=v=>v?'●':'○';
+    let t='ブラウザの ゲームパッドAPI: '+(PADINFO.ok?'つかえる':'つかえない '+PADINFO.err)+'\n';
+    if(!g)return t+'つながって いるコントローラー: なし\n\n▶ コントローラーを つないで、この ページを一どクリック → ボタンを ひとつ おしてね（ブラウザの しようで、おすまで みえない ことが あります）';
+    t+='なまえ: '+(g.id||'').slice(0,60)+'\nマッピング: '+(g.mapping||'(standardじゃない)')+'\nボタンすう: '+g.buttons.length+'  じくすう: '+g.axes.length+'\n';
+    t+='いま おしてる ボタン: '+(g.buttons.map((b,i)=>b&&(b.pressed||b.value>.5)?i:-1).filter(i=>i>=0).join(',')||'なし')+'\n';
+    t+='さいごに おした ボタン: '+(PADINFO.last===undefined?'まだ':PADINFO.last)+'\n';
+    t+='じくの あたい: '+g.axes.map(v=>(Math.round(v*100)/100)).join(' , ')+'\n\n';
+    t+='ゲームへの にゅうりょく: '+['u','d','l','r'].map((k,i)=>'↑↓←→'[i]+yn(keys[k])).join(' ')+'  A'+yn(keys.a)+' B'+yn(keys.b)+' はしる'+yn(RUN.p)+'\n';
+    t+='わりあて: 決定='+pmap('a').join('・')+' / メニュー='+pmap('b').join('・')+' / はしる='+pmap('run').join('・');
+    return t;}
+  window.padDiag=()=>{const o=!diag.classList.contains('open');diag.classList.toggle('open',o);clearInterval(dtm);if(o){dt.textContent=diagText();dtm=setInterval(()=>{dt.textContent=diagText();},150);}};
+  $('diagx').addEventListener('pointerdown',e=>{e.preventDefault();window.padDiag();});
+  diag.addEventListener('pointerdown',e=>{if(e.target===diag)window.padDiag();});
+  $('cfgb').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();open(!cfgp.classList.contains('open'));});
+  $('cfgx').addEventListener('pointerdown',e=>{e.preventDefault();open(false);});
+  cfgp.addEventListener('pointerdown',e=>{if(e.target===cfgp)open(false);});
+  addEventListener('resize',layout);addEventListener('orientationchange',()=>setTimeout(layout,150));
+  if(window.visualViewport)visualViewport.addEventListener('resize',layout);
+  if(window.ResizeObserver)new ResizeObserver(layout).observe(ctl);
+  layout();setTimeout(layout,300);
+  window.dqLayout=layout;
 })();
-// --- A / B / run buttons: multi-touch, pointer capture (finger may slide off without losing the press) ---
-document.querySelectorAll('#ab [data-k]').forEach(b=>{
-  const k=b.dataset.k;
-  if(k==='run'){b.addEventListener('pointerdown',e=>{e.preventDefault();RUN.t=!RUN.t;b.classList.toggle('on',RUN.t);b.textContent='はしる '+(RUN.t?'ON':'OFF');vib(8);});return;}
-  const on=e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId);}catch(_){}if(!keys[k])pressed[k]=true;keys[k]=true;b.classList.add('on');vib(8);};
-  const off=e=>{e.preventDefault();keys[k]=false;b.classList.remove('on');};
-  b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('lostpointercapture',off);
-});
 function took(k){if(pressed[k]){pressed[k]=false;return true;}return false;}
 function clearKeys(){for(const k in pressed)pressed[k]=false;}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -425,6 +560,7 @@ const CH={
   cat:{hair:'#c8a050',skin:'#c8a050',cloth:'#c8a050',pants:'#c8a050'}
 };
 function drawChar(g,x,y,key,dir=0,st=0){
+  if(key&&key.startsWith('cat_'))return drawCatChar(g,x,y,key,dir,st);   // ネコ編(ミケと仲間たち)
   const s=CH[key]||CH.man,skin=s.skin||'#f6cfa6',O='#1d1530';
   g.save();g.translate(x,y);
   if(dir===3){g.translate(32,0);g.scale(-1,1);dir=2;}
@@ -434,7 +570,7 @@ function drawChar(g,x,y,key,dir=0,st=0){
   const HG=LG(g,0,hy-9,0,hy+8,shade(s.hair,.18),s.hair);
   ell(g,16,30,9,2.8,'rgba(0,0,0,.3)');
   if(s.spear){g.strokeStyle='#bfc4d0';g.lineWidth=1.8;g.beginPath();g.moveTo(4.5,6);g.lineTo(4.5,30);g.stroke();g.strokeStyle=O;g.lineWidth=1.2;poly(g,[[2.5,7],[4.5,.5],[6.5,7]],'#eef',O);}
-  if(s.tails){const tg=LG(g,0,hy,0,hy+14,shade(s.tails,.2),s.tails);ell(g,5.8,hy+6,3.4,7,tg,O);ell(g,26.2,hy+6,3.4,7,tg,O);}
+  if(s.tails){const tg=LG(g,0,hy,0,hy+14,shade(s.tails,.2),s.tails);if(side){ell(g,23.2,hy+6.5+(st?1:0),3.6,7.4,tg,O);}else{ell(g,5.8,hy+6,3.4,7,tg,O);ell(g,26.2,hy+6,3.4,7,tg,O);}}
   // legs
   const la=st===1?-2.6:0,lb=st===2?-2.6:0,sw=st===1?1.3:st===2?-1.3:0,L1=side?12.6:10.6,L2=side?15.4:16.6,lw=side?4.4:4.9;
   rrect(g,L1,23+la,lw,7-la,1.6,s.pants,O);rrect(g,L2,23+lb,lw,7-lb,1.6,s.pants,O);
@@ -478,8 +614,88 @@ function drawChar(g,x,y,key,dir=0,st=0){
   if(s.bun){ell(g,16,hy-9.6,4.4,3.6,HG,O);ell(g,16,hy-9.6,1.6,1.4,'#c9a227');}
   if(s.horns){poly(g,[[8.5,hy-5],[6,hy-12.5],[12.5,hy-7.5]],'#f4efe0',O);poly(g,[[23.5,hy-5],[26,hy-12.5],[19.5,hy-7.5]],'#f4efe0',O);}
   if(s.glass&&dir===0){g.strokeStyle='#8fbfe0';g.lineWidth=1;ell(g,12.6,hy+1.6,2.8,2.4,null,'#8fbfe0');ell(g,19.4,hy+1.6,2.8,2.4,null,'#8fbfe0');g.beginPath();g.moveTo(15.4,hy+1.4);g.lineTo(16.6,hy+1.4);g.stroke();g.strokeStyle=O;g.lineWidth=1.2;}
-  if(s.tails){ell(g,7.5,hy-1.5,2.2,2.2,s.ribbon,O);ell(g,24.5,hy-1.5,2.2,2.2,s.ribbon,O);}
+  if(s.tails){if(side)ell(g,22.4,hy-1.2,2.4,2.4,s.ribbon,O);else{ell(g,7.5,hy-1.5,2.2,2.2,s.ribbon,O);ell(g,24.5,hy-1.5,2.2,2.2,s.ribbon,O);}}
   else if(s.ribbon){poly(g,[[9,hy-7],[4.5,hy-10.5],[4.5,hy-4]],s.ribbon,O);poly(g,[[9,hy-7],[13,hy-10.5],[13,hy-4]],s.ribbon,O);ell(g,9,hy-7,1.5,1.5,s.ribbon,O);}
+  g.restore();
+}
+
+
+// ---------- ネコ(三毛猫ミケと仲間たち): 正面・背面・横むき ----------
+const CATS={
+  cat_mike:{body:'#f8f3ea',shade:'#e2d9c6',p1:'#ee9a3c',p2:'#2c2630',eye:'#2a2a2a',nose:'#f09aa0',bell:1},
+  cat_kuro:{body:'#3a3644',shade:'#2a2634',eye:'#ffd23f',nose:'#d88a96'},
+  cat_tora:{body:'#e49c48',shade:'#c8802c',stripe:'#8a4a1a',eye:'#2a2a2a',nose:'#d86a6a'},
+  cat_shiro:{body:'#fbfbff',shade:'#d6dcf2',eye:'#4a8ae8',nose:'#f2a0a8'},
+  cat_yami:{body:'#52427a',shade:'#3a2c5a',eye:'#ff7ad8',nose:'#c07ab8',glow:1}
+};
+let CATF=1;
+function drawCatChar(g,x,y,key,dir,st){
+  const s=CATS[key]||CATS.cat_mike,O='#1d1530',t=G.tick;
+  const bob=st?-1:(((t>>5)&1)?-.4:0),tail=Math.sin(t*.12)*2.4,leg=st===1?2:st===2?-2:0;
+  g.save();g.translate(x,y);g.lineJoin='round';g.lineCap='round';g.lineWidth=1.2;g.strokeStyle=O;
+  ell(g,16,30.4,10.5,2.8,'rgba(0,0,0,.3)');
+  const BG=(a,b)=>LG(g,0,a,0,b,s.body,s.shade);
+  const patches=(fn)=>{g.save();fn();g.restore();};
+  const eye=(ex,ey)=>{ell(g,ex,ey,1.5,2,s.eye);if(s.glow){ell(g,ex,ey,2.7,3.2,'rgba(255,120,220,.28)');ell(g,ex,ey,1.5,2,s.eye);}ell(g,ex-.4,ey-.7,.55,.65,'#fff');g.fillStyle=O;g.fillRect(ex-.3,ey-.9,.7,1.9);};
+  if(dir===2)CATF=-1;else if(dir===3)CATF=1;
+  if(dir===0||dir===1){ // ---- 正面 / 背面 ----
+    const back=dir===1;
+    // しっぽ
+    g.lineWidth=3.2;g.strokeStyle=s.shade;g.beginPath();g.moveTo(back?19:23,27);g.quadraticCurveTo(30,23+tail,back?25:27,13+tail);g.stroke();
+    g.lineWidth=1.2;g.strokeStyle=O;
+    if(s.p2){g.lineWidth=3.2;g.strokeStyle=s.p2;g.beginPath();g.moveTo(26.6,19);g.quadraticCurveTo(28.6,17+tail,27,13.6+tail);g.stroke();g.lineWidth=1.2;g.strokeStyle=O;}
+    if(s.stripe){g.strokeStyle=s.stripe;g.lineWidth=1.3;for(const[ax,ay]of[[27.6,21],[28,18],[27.4,15]]){g.beginPath();g.moveTo(ax-1.3,ay+tail*.3);g.lineTo(ax+1.3,ay+tail*.3);g.stroke();}g.strokeStyle=O;g.lineWidth=1.2;}
+    // うしろあし(背面) / まえあし(正面)
+    rrect(g,10.6,26+(leg>0?-1:0),4.2,5.6,1.8,s.body,O);rrect(g,17.2,26+(leg<0?-1:0),4.2,5.6,1.8,s.body,O);
+    // からだ
+    ell(g,16,24.2+bob*.5,8.4,6.6,BG(18,31),O);
+    if(s.p1)patches(()=>{g.beginPath();g.ellipse(16,24.2+bob*.5,8.4,6.6,0,0,7);g.clip();ell(g,10.6,22,4.6,4,s.p1);ell(g,22,27,4,3.2,s.p2);ell(g,20,20.5,2.6,2,s.p1);});
+    if(s.stripe)patches(()=>{g.beginPath();g.ellipse(16,24.2+bob*.5,8.4,6.6,0,0,7);g.clip();g.strokeStyle=s.stripe;g.lineWidth=1.3;for(const sx of[9,12.4,19.6,23]){g.beginPath();g.moveTo(sx,19);g.lineTo(sx+(sx<16?1.2:-1.2),26);g.stroke();}});
+    // 頭
+    const hy=13.6+bob;
+    // 耳
+    poly(g,[[8.6,hy-2],[9.6,hy-10],[14.6,hy-5]],s.body,O);poly(g,[[23.4,hy-2],[22.4,hy-10],[17.4,hy-5]],s.body,O);
+    if(!back){poly(g,[[10.2,hy-4],[10.6,hy-8],[13,hy-5.4]],'#f6a8b4');poly(g,[[21.8,hy-4],[21.4,hy-8],[19,hy-5.4]],'#f6a8b4');}
+    if(s.p1&&!back){poly(g,[[8.6,hy-2],[9.6,hy-10],[14.6,hy-5]],s.p1,O);poly(g,[[23.4,hy-2],[22.4,hy-10],[17.4,hy-5]],s.p2,O);poly(g,[[10.2,hy-4],[10.6,hy-8],[13,hy-5.4]],'#f6a8b4');poly(g,[[21.8,hy-4],[21.4,hy-8],[19,hy-5.4]],'#f6a8b4');}
+    ell(g,16,hy,8.2,7,BG(hy-7,hy+7),O);
+    if(s.p1)patches(()=>{g.beginPath();g.ellipse(16,hy,8.2,7,0,0,7);g.clip();ell(g,9.6,hy-3,5.6,5,s.p1);ell(g,23.4,hy-2.4,4.8,4.4,s.p2);});
+    if(s.stripe)patches(()=>{g.strokeStyle=s.stripe;g.lineWidth=1.3;for(const sx of[13.4,16,18.6]){g.beginPath();g.moveTo(sx,hy-6.6);g.lineTo(sx,hy-3.4);g.stroke();}});
+    if(!back){
+      eye(12.6,hy+.6);eye(19.4,hy+.6);
+      poly(g,[[15,hy+3.2],[17,hy+3.2],[16,hy+4.4]],s.nose,O);
+      g.lineWidth=.9;g.beginPath();g.moveTo(16,hy+4.4);g.quadraticCurveTo(14.6,hy+6,13.2,hy+5);g.moveTo(16,hy+4.4);g.quadraticCurveTo(17.4,hy+6,18.8,hy+5);g.stroke();
+      g.strokeStyle='rgba(60,40,50,.55)';for(const sy of[-.8,.6]){g.beginPath();g.moveTo(8.4,hy+3.4+sy);g.lineTo(3.4,hy+2.2+sy*3);g.moveTo(23.6,hy+3.4+sy);g.lineTo(28.6,hy+2.2+sy*3);g.stroke();}
+      g.strokeStyle=O;g.lineWidth=1.2;
+      if(s.bell){rrect(g,10.6,hy+6.2,10.8,2.4,1.2,'#e03a3a',O);ell(g,16,hy+9.4,1.7,1.7,'#ffd23f','#8a6a00');}
+    }
+  }else{ // ---- 横むき(右むき。左は反転) ----
+    g.translate(16,0);g.scale(CATF,1);g.translate(-16,0);
+    // しっぽ
+    g.lineWidth=3.2;g.strokeStyle=s.p2||s.shade;g.beginPath();g.moveTo(6.5,22);g.quadraticCurveTo(-1,19+tail,2.5,10.5+tail);g.stroke();
+    g.strokeStyle=s.body;g.lineWidth=2.4;g.beginPath();g.moveTo(6.5,22);g.quadraticCurveTo(-1,19+tail,2.5,10.5+tail);g.stroke();
+    if(s.p2){g.strokeStyle=s.p2;g.lineWidth=2.4;g.beginPath();g.moveTo(.4,15.4+tail*.8);g.quadraticCurveTo(.8,12.6+tail,2.5,10.5+tail);g.stroke();}
+    g.lineWidth=1.2;g.strokeStyle=O;
+    // あし(奥→手前)
+    const lg=(lx,dy)=>rrect(g,lx,24.4+dy,3.8,6.4-dy,1.6,s.shade,O);
+    lg(21,leg>0?-1.6:0);lg(7.4,leg<0?-1.6:0);
+    // からだ
+    ell(g,14,22.6+bob*.5,10,5.8,BG(17,29),O);
+    if(s.p1)patches(()=>{g.beginPath();g.ellipse(14,22.6+bob*.5,10,5.8,0,0,7);g.clip();ell(g,9,20.4,5.2,4,s.p1);ell(g,19.4,25,4.4,3.2,s.p2);ell(g,5.4,25,3,2.6,s.p2);});
+    if(s.stripe)patches(()=>{g.beginPath();g.ellipse(14,22.6+bob*.5,10,5.8,0,0,7);g.clip();g.strokeStyle=s.stripe;g.lineWidth=1.3;for(const sx of[7,10.6,14.2,17.8,21.2]){g.beginPath();g.moveTo(sx,17);g.lineTo(sx+1.4,23);g.stroke();}});
+    lg(17.4,leg<0?-1.6:0);lg(11,leg>0?-1.6:0);
+    // 頭
+    const hx=24,hy=15.4+bob;
+    poly(g,[[hx-5,hy-3],[hx-3.6,hy-10],[hx+.4,hy-5]],s.p1||s.body,O);poly(g,[[hx-.6,hy-5],[hx+2.4,hy-9.4],[hx+4,hy-3]],s.p2||s.body,O);
+    poly(g,[[hx-3.4,hy-5],[hx-3.2,hy-8],[hx-1,hy-5.4]],'#f6a8b4');
+    ell(g,hx,hy,6.2,5.6,BG(hy-6,hy+6),O);
+    if(s.p1)patches(()=>{g.beginPath();g.ellipse(hx,hy,6.2,5.6,0,0,7);g.clip();ell(g,hx-3.6,hy-2.6,4.2,3.6,s.p1);ell(g,hx+3.8,hy-3,3,2.6,s.p2);});
+    if(s.stripe)patches(()=>{g.strokeStyle=s.stripe;g.lineWidth=1.2;for(const sx of[hx-2,hx,hx+2]){g.beginPath();g.moveTo(sx,hy-5.4);g.lineTo(sx,hy-3);g.stroke();}});
+    eye(hx+2.6,hy-.4);
+    poly(g,[[hx+5.2,hy+.8],[hx+6.8,hy+1.2],[hx+5.4,hy+2.4]],s.nose,O);
+    g.strokeStyle='rgba(60,40,50,.55)';g.lineWidth=.8;for(const sy of[0,1.4]){g.beginPath();g.moveTo(hx+4.6,hy+2+sy);g.lineTo(hx+9.6,hy+1.4+sy*2);g.stroke();}
+    g.strokeStyle=O;g.lineWidth=1.2;
+    if(s.bell){rrect(g,hx-3.6,hy+3.6,5,2.2,1,'#e03a3a',O);ell(g,hx-1.2,hy+6.6,1.5,1.5,'#ffd23f','#8a6a00');}
+  }
   g.restore();
 }
 
@@ -819,16 +1035,16 @@ const GR={hp:6,mp:2,atk:2,def:2};
 const CHARS={
   hero:{name:'ゆうしゃ',label:'ゆうしゃ',spr:'hero',lv:1,hp:24,mp:6,atk:9,def:4,wp:3,wpn:'こんぼう',ar:0,arn:'ぬののふく',gold:20,items:{'やくそう':2},map:'v1',x:4,y:5,
     spells:[{n:'いやしび',mp:2,t:'heal',p:25,lv:1},{n:'ひのこ',mp:3,t:'atk',p:22,lv:3},{n:'おおいやしび',mp:6,t:'heal',p:80,lv:9},{n:'いかずち',mp:10,t:'atk',p:120,lv:15}],
-    title:'だい1しょう　ゆうしゃの ものがたり',intro:['ゆうしゃよ、おきなさい。\nきょうは だいじな ひ。むらちょうさまが およびですよ。'],
+    title:'だい1しょう　ゆうしゃの ものがたり',intro:['ゆうしゃよ、おきなさい。\nきょうは だいじな ひ。そんちょうさまが およびですよ。'],
     end:['まおうは くだけちり、せかいに ひかりが もどった。','ゆうしゃの なは しろの かべにも、むらの うたにも のこるだろう。','――めでたし、めでたし。','しかし。','むらの かたすみで、だれかが ふと つぶやいた。','「ところで……これは、だれの ものがたり だったのかな？」']},
   vb:{name:'むらびとB',label:'むらびとB',spr:'vb',lv:6,hp:70,mp:14,atk:22,def:14,wp:6,wpn:'くわ',ar:3,arn:'のらぎ',gold:80,items:{'やくそう':3},map:'v1',x:12,y:5,
     spells:[{n:'かあちゃんの はげまし',mp:3,t:'heal',p:40,lv:1},{n:'どろだんご',mp:2,t:'atk',p:20,lv:1}],
     title:'だい2しょう　むらびとBの ものがたり',intro:['ぼくは はじまりの村の むらびとB。\nなまえは ない。\nゆうしゃが たびだった あと、みなと村の むすめが ねつを だしたと ふみが とどいた。','……ゆうしゃのように つよくは ない。でも、ぼくにも まもりたい ものが ある。'],
     end:['むすめの ねつは すっかり さがった。','「パパ、きてくれたの？」\n「あたりまえだ。ゆうしゃより いそいできたぞ」','せかいを すくう ひとが いれば、その うらで ちいさな せかいを まもる ひとも いる。','それも また、りっぱな ゆうしゃ だった。']},
-  mayor:{name:'むらちょう',label:'むらちょう',spr:'mayor',lv:7,hp:80,mp:30,atk:20,def:16,wp:4,wpn:'つえ',ar:4,arn:'むらのほうい',gold:300,items:{'やくそう':3},map:'v1',x:19,y:5,
-    spells:[{n:'いやしび',mp:4,t:'heal',p:40,lv:1},{n:'ありがたい おはなし',mp:3,t:'stun',pr:8,lv:1},{n:'むらちょうの いかり',mp:6,t:'atk',p:40,lv:1}],
-    title:'だい3しょう　むらちょうの ものがたり',intro:['わしは はじまりの村の むらちょう。\nゆうしゃを おくりだした いま、わすれては ならぬ ことを おもいだした。','ゆうしゃの ちちに わたす はずだった『ちかいの手紙』を、ねむりの洞窟に かくしたまま じゃった……！\nまずは はじまりの祠で ひとに あっておこう。'],
-    end:['てがみには こう かかれていた。','「わが子よ。おまえが たびに でる ひ、わたしは もう そばに いないだろう。\nだが おまえの ゆうきは、わたしの ほこりだ」','むらちょうは てがみを だきしめ、あさひの さす そらを みあげた。','「……ちゃんと、わたせたぞ。」']},
+  mayor:{name:'そんちょう',label:'そんちょう',spr:'mayor',lv:7,hp:80,mp:30,atk:20,def:16,wp:4,wpn:'つえ',ar:4,arn:'むらのほうい',gold:300,items:{'やくそう':3},map:'v1',x:19,y:5,
+    spells:[{n:'いやしび',mp:4,t:'heal',p:40,lv:1},{n:'ありがたい おはなし',mp:3,t:'stun',pr:8,lv:1},{n:'そんちょうの いかり',mp:6,t:'atk',p:40,lv:1}],
+    title:'だい3しょう　そんちょうの ものがたり',intro:['わしは はじまりの村の そんちょう。\nゆうしゃを おくりだした いま、わすれては ならぬ ことを おもいだした。','ゆうしゃの ちちに わたす はずだった『ちかいの手紙』を、ねむりの洞窟に かくしたまま じゃった……！\nまずは はじまりの祠で ひとに あっておこう。'],
+    end:['てがみには こう かかれていた。','「わが子よ。おまえが たびに でる ひ、わたしは もう そばに いないだろう。\nだが おまえの ゆうきは、わたしの ほこりだ」','そんちょうは てがみを だきしめ、あさひの さす そらを みあげた。','「……ちゃんと、わたせたぞ。」']},
   minister:{name:'だいじん',label:'だいじん',spr:'minister',lv:16,hp:160,mp:70,atk:40,def:34,wp:18,wpn:'ペーパーナイフ',ar:14,arn:'ぎょうせいふく',gold:1500,items:{'やくそう':5},map:'v3',x:7,y:5,
     spells:[{n:'おせじ',mp:3,t:'stun',pr:9,lv:1},{n:'ばっさい',mp:8,t:'atk',p:55,lv:1},{n:'こうしょう',mp:8,t:'heal',p:70,lv:1}],
     title:'だい4しょう　だいじんの ものがたり',intro:['わしは この国の だいじん。\nゆうしゃを おくりだして ほっとした ところで、ひきだしから 一まいの しょるいが でてきた。','『まおうとの ふかしんじょうやく』……はんこが まだ おされていない！\nやみの村の むこう、まおう城まで とどけねば、せきにんもんだいだ！'],
@@ -846,6 +1062,11 @@ const CHARS={
     title:'だい7しょう　ろうやの ごろつきの ものがたり',intro:['ちっ……また ろうやか。\nだが ほのおの洞窟に かくした おたからが ある。ここで くさってる ひまは ねえ。','まずは あの ねぼけた かんしゅから カギを かっぱらうか。'],
     end:['ごろつきは ほこらの ひとに たからを さしだした。','「……それは、ゆうしゃの ためじゃ。おまえが さいごに すくうのは、おまえ自身じゃ」','「けっ。しらねえよ」\nそう いいながら、ごろつきは ほこらを あとにした。','その あしどりは、なぜか すこしだけ かるかった。']}
 };
+CHARS.cat={name:'ミケ',label:'？？？ もう１つの にゃん生 ？？？',spr:'cat_mike',lv:12,hp:110,mp:40,atk:34,def:26,wp:10,wpn:'するどい ツメ',ar:6,arn:'あかい くびわ',gold:0,items:{'やくそう':2},map:'v2',x:15,y:10,
+  spells:[{n:'ごろごろ',mp:3,t:'heal',p:60,lv:1},{n:'ねこパンチ',mp:3,t:'atk',p:45,lv:1},{n:'にゃーおん',mp:5,t:'stun',pr:9,lv:1}],
+  title:'さいしゅうしょう　？？？　もう１つの にゃん生　？？？',
+  intro:['……にゃあ。','わたしは ミケ。みなと村に すむ、のらねこ。\nにんげんたちの ものがたりは どれも おもしろかった。でも だれも、ねこの はなしは きいてくれない。','きいたわ。みなと村の つりたいかいで、いちばん おおきな さかなが うみ神さまに ささげられるって。','……ささげる？ ばかね。さかなは ねこが たべる ものよ。','こうして ミケは、せかいを ゆるがす（かもしれない）\n『さかな ごうだつ けいかく』を たてたのだった。','まずは なかまあつめ。はじまりの村、みなと村、たかね村、ヨイヤミの村。\nどの まちにも ひとりずつ、くせの つよい ねこが いるはず。'],
+  end:['うみ神さまの ぞうの まえに、かつて ない ごちそうが ならんだ。','……ただし たべたのは、ねこたち。','「うまい！」「うまいわ！」「……ふ、にゃ」\nクロも トラも シロも ヤミも、おなかを まるくして ねむった。','かんりにんは からっぽの たいを みつめて つぶやいた。\n「……うみ神さま、ことしは ねこの かたで いらっしゃったか」','みなと村の ひとびとは なぜか なっとくした。\nそして ミケは ひなたで まるくなり、ちいさく あくびを した。','「にゃあ。……これも、ねこの ものがたり」']};
 const ORDER=['hero','vb','mayor','minister','hermit','gal','rogue'];
 const NPCS=[];
 const npc=(id,map,x,y,spr,talk,show,dir)=>NPCS.push({id,map,x,y,spr,talk,show,dir:dir||0});
@@ -890,7 +1111,7 @@ async function openChest(c){
   if(G.f[c.id]){await say('からっぽだ。');return;}
   { const m=G.map;sfx('chest');m.g[c.y][c.x]='U';G.fx.push({k:'spark',x:c.x,y:c.y,t:0});await sleep(480); }
   G.f[c.id]=1;refreshMap();
-  if(c.id==='c1b'&&G.story==='mayor'){G.f.letter=1;await say('はこの おくに ふるびた ふうとうが ある！\nむらちょうは『ちかいの手紙』を てにいれた！');await finishStory();return;}
+  if(c.id==='c1b'&&G.story==='mayor'){G.f.letter=1;await say('はこの おくに ふるびた ふうとうが ある！\nそんちょうは『ちかいの手紙』を てにいれた！');await finishStory();return;}
   if(c.id==='c3b'&&G.story==='rogue'){G.f.loot=1;await say('へへっ、あった あった！\nぬすんだ たからだ。……ずっしり おもい。\n『げんきの玉』も はいっている！');G.pc.items['げんきの玉']=(G.pc.items['げんきの玉']||0)+1;return;}
   if(c.item){G.pc.items[c.item]=(G.pc.items[c.item]||0)+1;await say(`たからばこを あけた！\n${c.item}を てにいれた！`);}
   else{const g=c.g||20;G.gold+=g;await say(`たからばこを あけた！\n${g}ゴールドを みつけた！`);}
@@ -902,7 +1123,7 @@ async function openChest(c){
   npc('gate'+n,'world',x,y,'guard',L('かんもんの へいし','ここは かんもんだ。まものが おおくて あぶない。',t),()=>!gateOpen(n),1));
 // v1
 npc('mom','v1',5,4,'woman',async()=>{
-  if(isStory('hero')&&!G.f.mom1){G.f.mom1=1;await say('おはよう。きょうは むらちょうさまが よんでいたわ。\nこれ、もっていきなさい。','おかあさん');G.gold+=20;await say('20ゴールドを もらった！');}
+  if(isStory('hero')&&!G.f.mom1){G.f.mom1=1;await say('おはよう。きょうは そんちょうさまが よんでいたわ。\nこれ、もっていきなさい。','おかあさん');G.gold+=20;await say('20ゴールドを もらった！');}
   else if(isStory('hero'))await say('きをつけて いってらっしゃい。ちゃんと やどやで やすむのよ。','おかあさん');
   else await say('うちの こは まおうを たおしに いったわ……どうか ぶじで。','ゆうしゃの はは');});
 npc('wifeB','v1',13,4,'woman',async()=>{
@@ -913,10 +1134,10 @@ npc('wifeB','v1',13,4,'woman',async()=>{
 npc('mayor','v1',19,4,'mayor',async()=>{
   if(isStory('hero')){
     if(!G.f.mayor1){G.f.mayor1=1;
-      await sayAll(['おお、ゆうしゃよ！ よくぞ きた！','ふたたび まおうが めざめた。せかいは やみに つつまれようと している。','おまえの ちちも かつて ここから たびだった……。','まずは むらの きたにしの『はじまりの祠』を おとずれなさい。そこに おまえを まつ ひとが おる。','これは ささやかな ししゅつ金じゃ。うけとってくれ。'],'むらちょう');
+      await sayAll(['おお、ゆうしゃよ！ よくぞ きた！','ふたたび まおうが めざめた。せかいは やみに つつまれようと している。','おまえの ちちも かつて ここから たびだった……。','まずは むらの きたにしの『はじまりの祠』を おとずれなさい。そこに おまえを まつ ひとが おる。','これは ささやかな ししゅつ金じゃ。うけとってくれ。'],'そんちょう');
       G.gold+=60;await say('60ゴールドを もらった！');}
-    else await say('まおうを たおすまで かえってくるな……とは いわぬ。\nむりは するでないぞ。','むらちょう');
-  }else await say('いまは ゆうしゃの かえりを まつだけ じゃ。','むらちょう');},()=>!isStory('mayor'));
+    else await say('まおうを たおすまで かえってくるな……とは いわぬ。\nむりは するでないぞ。','そんちょう');
+  }else await say('いまは ゆうしゃの かえりを まつだけ じゃ。','そんちょう');},()=>!isStory('mayor'));
 npc('inn1','v1',7,14,'inn',async()=>{
   if(isStory('hermit')){
     await sayAll(['おや、ほこらの ごろうにんじゃ ありませんか！','ひとばんは とまらず、ただ いっぱい スープを どうぞ。','……ずず……。'],'やどや');await finishStory();
@@ -984,7 +1205,7 @@ npc('hermit1','shrine1',6,3,'hermit',async()=>{
   if(isStory('hero')){
     if(!G.f.hermit1){G.f.hermit1=1;await sayAll(['……よくぞ きた、ゆうしゃよ。わしは ひゃくねん この ほこらで おまえを まっておった。','みなみの ねむりの洞窟に プルンキングが すみついた。やつを たおせ。さすれば さきへ すすむ みちが ひらかれる。','これを もって ゆけ。ちちが のこした ひのきの つるぎ じゃ。'],'ほこらの 人');G.pc.wp=9;G.pc.wpn='ひのきのつるぎ';await say('ひのきの つるぎを てにいれた！\nこうげきりょくが あがった！');}
     else await say('たびは まだ はじまったばかり。しっかり やすむ のじゃ。','ほこらの 人');
-  }else if(isStory('mayor')){G.f.hermit1m=1;await sayAll(['おお むらちょう どの。『ちかいの手紙』なら、ねむりの洞窟の おくに あると きいた ことが ある。','ひだり うえの いきどまりの たからばこ かもしれぬ。'],'ほこらの 人');}
+  }else if(isStory('mayor')){G.f.hermit1m=1;await sayAll(['おお そんちょう どの。『ちかいの手紙』なら、ねむりの洞窟の おくに あると きいた ことが ある。','ひだり うえの いきどまりの たからばこ かもしれぬ。'],'ほこらの 人');}
   else if(isStory('hermit'))await say('……わしは ここに もう いない。はやく むらへ いこう。','');
   else await say('……ようこそ ほこらへ。','ほこらの 人');},()=>!isStory('hermit'));
 npc('hermit2','shrine2',6,3,'granny',async()=>{
@@ -1024,13 +1245,14 @@ const npcsOn=mid=>NPCS.filter(n=>n.map===mid&&(!n.show||n.show()));
 // ---- story flow ----
 function goalText(){
   const f=G.f,s=G.story;
-  if(s==='hero')return !f.mayor1?'むらちょうに はなしを きこう（むらの いえの おく）':!f.hermit1?'きたにしの はじまりの祠へ いこう':!f.b1?'ねむりの洞窟（みなみ）の プルンキングを たおせ':!f.b2?'みなと村の ちかくの こだまの洞窟へ。しょうしょう つよく なって から':!f.b3?'たかね村の ちかくの ほのおの洞窟の ドラゴンを たおせ':'ヨイヤミ村の ひがし、まおう城へ！';
+  if(s==='hero')return !f.mayor1?'そんちょうに はなしを きこう（むらの いえの おく）':!f.hermit1?'きたにしの はじまりの祠へ いこう':!f.b1?'ねむりの洞窟（みなみ）の プルンキングを たおせ':!f.b2?'みなと村の ちかくの こだまの洞窟へ。しょうしょう つよく なって から':!f.b3?'たかね村の ちかくの ほのおの洞窟の ドラゴンを たおせ':'ヨイヤミ村の ひがし、まおう城へ！';
   if(s==='vb')return !f.med?'つまから くすりを うけとろう':'みなと村の むすめに くすりを とどけよう（きたの おか を こえた むこう）';
   if(s==='mayor')return !f.hermit1m?'はじまりの祠（きたにし）の ひとに はなしを きこう':'ねむりの洞窟（みなみ）の おくの たからばこを さがせ';
   if(s==='minister')return '『まおうとの しょるい』を まおう城へ とどけよう（ヨイヤミ村の ひがし）';
   if(s==='hermit')return '山を おりて はじまりの村の やどやで スープを たべよう';
   if(s==='gal')return !f.ribbon?'ヨイヤミ村の ブティックで リボンを もらおう':'ステージの モデルに はなしかけよう';
   if(s==='rogue')return !f.key?'ろうやの かんしゅから カギを ぬすもう':!f.loot?'ほのおの洞窟の たからばこを あけろ':!f.donated?'たかね村の ほくとう ほし見の祠へ たからを とどけろ':'……';
+  if(s==='cat'){const n=['kuro','tora','shiro','yami'].filter(k=>f[k]).length;return n<4?`なかまを あつめよう（のこり ${4-n}ひき）：はじまりの村・みなと村・たかね村・ヨイヤミの村`:'みなと村の つりばし（つりたいかいの かんりにん）で さくせんを じっこうしよう';}
   return '';
 }
 function mkPC(id){
@@ -1074,19 +1296,23 @@ async function onLose(){
 async function selectStory(afterEnd){
   G.mode='select';G.card=null;
   const cl=clearedList();
-  if(cl.length>=7&&afterEnd&&!G.f.credits){G.f.credits=1;await credits();return;}
+  const all7=ORDER.every(id=>cl.includes(id));
+  if(afterEnd&&cl.includes('cat')&&!G.f.credits){G.f.credits=1;await credits();return;}
   if(afterEnd)await say('？これは、だれの ものがたり だったのか……。\nだれかに とっては、ここからが はじまり。');
+  if(afterEnd&&all7&&!cl.includes('cat')&&!G.f.catHint){G.f.catHint=1;await say('……にゃあ。\nどこかで、ねこの なきごえが した。\n(？？？ もう１つの にゃん生 が ひらかれた！)');}
   while(true){
     const unlocked=cl.includes('hero');
-    const dis=ORDER.map((id,i)=>i>0&&!unlocked);
-    const opts=ORDER.map((id,i)=>(cl.includes(id)?'★ ':'　')+(dis[i]?'？？？':CHARS[id].label));
-    const i=await choose(opts,{x:60,y:50,w:392,title:afterEnd?'だれの じせいのくを あゆむ？':'まずは じせいのくを えらぼう',dis});
-    await startStory(ORDER[i]);return;
+    const ids=ORDER.concat(all7?['cat']:[]);
+    const dis=ids.map((id,i)=>i>0&&!unlocked);
+    const opts=ids.map((id,i)=>(cl.includes(id)?'★ ':'　')+(dis[i]?'？？？':CHARS[id].label));
+    const i=await choose(opts,{x:40,y:30,w:432,title:afterEnd?'だれの じせいのくを あゆむ？':'まずは じせいのくを えらぼう',dis});
+    await startStory(ids[i]);return;
   }
 }
 async function credits(){
   await fade(1,500);G.mode='card';G.card='FIN';await fade(0,500);
-  await sayAll(['ゆうしゃ、むらびと、むらちょう、だいじん、ほこらの ひと、ギャル、ごろつき。','だれも が、どこかの ものがたりの しゅやく だった。','――あなたの ものがたりも、きっと。','ありがとうございました！'],'');
+  await sayAll(['ゆうしゃ、むらびと、そんちょう、だいじん、ほこらの ひと、ギャル、ごろつき、そして ねこ。','だれも が、どこかの ものがたりの しゅやく だった。','――あなたの ものがたりも、きっと。','ありがとうございました！'],'');
+  await sayAll(['……ふと、どこかで しらない たびびとの ふえが きこえた。','（？？？　つづく……かも　？？？）'],'');
   await fade(1,600);G.card=null;G.mode='title';await fade(0,500);
 }
 
@@ -1097,13 +1323,13 @@ const putTiles=(id,list)=>{const m=MAPS[id];for(const[x,y,c]of list)m.g[y][x]=c;
 // ---------- v2 みなと村: 港・つりたいかい・うみの かみさま ----------
 putTiles('v2',[[22,4,'a'],[21,12,'a'],[23,14,'a'],[24,17,'I'],[17,6,'n'],[17,7,'n'],[19,14,'r'],[19,15,'r'],[18,9,'i'],[22,17,'S'],[3,9,'i']]);
 const fishWait=async(ms)=>{const t0=Date.now();while(Date.now()-t0<ms)await sleep(30);};
-async function castLine(){
+async function castLine(win){
   G.fish={phase:'wait',t:0};
   await say('つりざおを なげた……');
   await fishWait(700+rnd(1400));
   G.apress=0;sfx('crit');G.fish.phase='hit';G.fish.t=0;G.banner={text:'！ ヒット ！　Aボタンで ひけ！',t:46};
   const t0=Date.now();let ok=false;
-  while(Date.now()-t0<900){if(G.apress>0){ok=true;break;}await sleep(16);}
+  while(Date.now()-t0<(win||900)){if(G.apress>0){ok=true;break;}await sleep(16);}
   G.banner=null;
   if(ok){sfx('hit');G.fish.phase='catch';G.fish.t=0;return true;}
   G.fish.phase='miss';G.fish.t=0;return false;
@@ -1114,8 +1340,9 @@ TILEEV['v2:21,7']=TILEEV['v2:21,9']=async()=>{
   if(i!==0)return;
   G.f.fishN=(G.f.fishN||0)+1;
   if(await castLine()){
-    const big=rnd(5)===0;
-    if(big){G.pc.items['さかなの スープ']=(G.pc.items['さかなの スープ']||0)+1;await say('おおものだ！ しずみかけの つぼから\n『さかなの スープ』を てにいれた！');}
+    const big=rnd(5)===0,nushi=rnd(12)===0;
+    if(nushi){G.gold+=200;G.f.nushi=1;sfx('win');await sayAll(['ぐぐぐっ……！ ものすごい ひきだ！！','うみの ぬし『ごんぞう』が あらわれた！\nぬしは ひとにらみ すると、ひかる うろこを のこして うみへ かえった。','『ぬしの うろこ』を うって 200ゴールドに なった！']);}
+    else if(big){G.pc.items['さかなの スープ']=(G.pc.items['さかなの スープ']||0)+1;await say('おおものだ！ しずみかけの つぼから\n『さかなの スープ』を てにいれた！');}
     else{G.pc.items['やきざかな']=(G.pc.items['やきざかな']||0)+1;await say('つれた！ そのばで やいて\n『やきざかな』に した！');}
   }else await say('にげられた……！ ざんねん。');
   G.fish=null;
@@ -1133,7 +1360,8 @@ npc('harbor','v2',19,7,'guard',async()=>{
     await sayAll([`${n}ひき！ ゆうしょうだ！！`,'しょうきん 150ゴールドと『さかなの スープ』2つを もらった！'],'みなとの かんりにん');}
   else await say(`${n}ひき か……。 また ちょうせん してくれ！\nさんかしょうに 10ゴールドだ。`,'みなとの かんりにん'),G.gold+=10;
 });
-npc('fishvend','v2',17,9,'woman',()=>shop([{n:'やきざかな',price:12,t:'item'},{n:'さかなの スープ',price:35,t:'item'},HERB]),()=>true);
+npc('fishvend','v2',17,9,'woman',async()=>{const mk=typeof phaseNow==='function'&&phaseNow()===0,st=[{n:'やきざかな',price:12,t:'item'},{n:'さかなの スープ',price:35,t:'item'},HERB];
+  if(mk){await say('朝市だよ！ きょうは ぜんぶ 3わり びき！','さかなやの おかみ');await shop(st.map(s=>Object.assign({},s,{price:Math.max(1,Math.ceil(s.price*.7))})));}else await shop(st);},()=>true);
 npc('netman','v2',16,6,'old',L('あみつくろいの ろうじん','あみは むらの ほこりじゃ。\nよるの うみには ひかる さかなが おってな、とうだいの ひかりを めじるしに かえってくる。'));
 npc('fishwife','v2',20,17,'woman',L('さかなやの おかみ','うみ神さまに おそなえを すると、おまもりを くださるって いわれてるの。\nそこの いしぞうに おいのり してみて！'));
 TILEEV['v2:22,17']=async()=>{
@@ -1308,50 +1536,51 @@ async function titleFlow(){
 // 操作キャラ(G.story)ごとに、同じNPCでも反応が変わる。ここに無い組み合わせは story.js の標準セリフ。
 const ALT={};
 function alt(id,name,tbl){ALT[id]=ALT[id]||{};for(const st in tbl){const v=tbl[st];ALT[id][st]=[name].concat(Array.isArray(v)?v:[v]);}}
-async function talkTo(n){const a=ALT[n.id]&&ALT[n.id][G.story];if(a)await sayAll(a.slice(1),a[0]);else await n.talk();}
+async function talkTo(n){if(G.story==='cat'){await catTalk(n);return;}await echoTalk(n);await talkTo0(n);await worldPost(n);}
+async function talkTo0(n){const a=ALT[n.id]&&ALT[n.id][G.story];if(a)await sayAll(a.slice(1),a[0]);else await n.talk();}
 const GREET={
-  inn:{vb:'いらっしゃい、おきゃくさん。\nきょうは ぐっすり おやすみ ください！',mayor:'むらちょうさま、ようこそ！\nきょうは とくべつに おむかえ します！',
+  inn:{vb:'いらっしゃい、おきゃくさん。\nきょうは ぐっすり おやすみ ください！',mayor:'そんちょうさま、ようこそ！\nきょうは とくべつに おむかえ します！',
     minister:'だいじんさま、ようこそ。\nごくひの かいぎは おことわり ですよ。',hermit:'おや、はじめての おきゃくさま ですか？\nようこそ、ごゆっくり。',
     gal:'あら、かわいい おきゃくさん！\nサービス しちゃう！',rogue:'ひ、ひっ……ごろつき……。\nおかねは さきばらい で おねがいします……。'},
-  shop:{vb:'おお、B！ いつもの くわ……じゃ ないのか。',mayor:'むらちょうさま、いらっしゃいませ！',minister:'だいじんさま、ごひいきに！\nけいひで おとします か？',
+  shop:{vb:'おお、B！ いつもの くわ……じゃ ないのか。',mayor:'そんちょうさま、いらっしゃいませ！',minister:'だいじんさま、ごひいきに！\nけいひで おとします か？',
     hermit:'おや、めずらしい おきゃくさん。\nごろうにん、なにを おさがし ですか？',gal:'いらっしゃい！ かわいい ギャルさん、おまけ しとくよ！',rogue:'……ご、ごろつき……。\nぬすまないで くださいよ……。'}
 };
 // ---------- はじまりの村 ----------
 alt('v1a','むらびと',{
   vb:'おう、B！ はたけは だいじょうぶか？\nきょうは いつもより きりっと してるな。',
-  mayor:'むらちょうさま！ こんなところで おさんぽですか？\n……てがみ？ さあ、ぞんじませんが。',
+  mayor:'そんちょうさま！ こんなところで おさんぽですか？\n……てがみ？ さあ、ぞんじませんが。',
   minister:'おや、おえらいさんの だいじんさま！\nこんな いなかに ごようとは。ぜいきんの おはなし ですか？',
   hermit:'あれ……みなれない ごろうにんだな。\nほこらに すんでる ひと？ まさかな。',
   gal:'あっ、みなと村の ギャルちゃん！\nヨイヤミの ショーに でるんだって？ すげえなあ。',
   rogue:'ひっ！ その かお……ろうやに いた ごろつき！\nだ、だれか……！ ……あれ、なにも してこない？'});
 alt('v1b','おんなのこ',{
   vb:'Bおじさん！ みなと村へ いくんでしょ？\nいってらっしゃい！ ぜったい だいじょうぶ！',
-  mayor:'むらちょうさま、かたに ほこりが ついてるよ！\nとって あげる！',
+  mayor:'そんちょうさま、かたに ほこりが ついてるよ！\nとって あげる！',
   minister:'ぎょうせいふくの おじさんだ！ えらい ひと？\nおかし くれる？',
   hermit:'おじいちゃん、ほこらの ひと でしょ？\nおばあちゃんが ずっと まえに おはなし してたよ！',
   gal:'おねえちゃん、かわいい！\nそのリボン、どこで うってるの？ ほしい！',
   rogue:'……こわい おじさんが きた。\n(おんなのこは いえに かけこんだ)'});
 alt('v1c','ろうじん',{
   vb:'Bか。むすめの ことは きいた。\nねつには しょうがが きく。にがくても のませるんじゃぞ。',
-  mayor:'むらちょうか。いつも ごくろうさん。\nところで ちかいの手紙は みつかったかの？',
+  mayor:'そんちょうか。いつも ごくろうさん。\nところで ちかいの手紙は みつかったかの？',
   minister:'だいじんが こんな いなかに……。\nわしの ころは、こくおうさまも あぜみちを あるいたもんじゃ。',
   hermit:'おお、ほこらの ごろうにん！ ひゃくねんぶり じゃな。\nあの スープの うわさは むらじゅうに ひろまっておる。',
   gal:'わかい もんは にぎやかで いいのう。\nわしの わかい ころは……いや、なんでもない。',
   rogue:'おぬし、ずいぶん やせたの。ろうやの めしは まずかったか。\nわしは にげも かくれも せん。すきに あるきなさい。'});
 alt('mom','ゆうしゃの はは',{
   vb:'あら B さん。むすめさんの ことは きいたわ。\nうちの こも ゆうしゃで たびに でて……さびしいわね。',
-  mayor:'むらちょうさま、おはようございます。\nうちの こを おくりだして くださって ありがとうございます。',
+  mayor:'そんちょうさま、おはようございます。\nうちの こを おくりだして くださって ありがとうございます。',
   minister:'まあ、だいじんさま！\nゆうしゃの ははが いうのも なんですが、ぜいきんを もうすこし やすく してくださいな。',
   hermit:'あら、ほこらの おじいさん。ひさしぶりに おみかけしました。\nうちで ごはん たべていきます？',
   gal:'まあ、かわいらしい ギャルね。\nうちの こにも こんな おともだちが いたら よかったのに。',
   rogue:'ひぃっ！ ……あ、あなた ろうやの……。\nうちの こに てを だしたら ゆるしませんよ！'});
 alt('wifeB','むらびとの つま',{
-  mayor:'むらちょうさま、こんにちは。\nうちの ひとが ごめいわく おかけして ません？',
+  mayor:'そんちょうさま、こんにちは。\nうちの ひとが ごめいわく おかけして ません？',
   minister:'まあ、だいじんさま！ こんな ところまで。\nおちゃでも いかが？',
   hermit:'あら、ほこらの おじいさん。\nどうぞ やすんで いって ください。',
   gal:'まあ、きれいな こ。\nうちの むすめの おせわを してくれるの？ ……あ、ちがうのね。',
   rogue:'ひゃっ！ ……ごろつきさん。ちょっと こわいわ。\nおかねは ありませんよ！'});
-alt('mayor','むらちょう',{
+alt('mayor','そんちょう',{
   vb:'おお、B。むすめさんの ことは きいた。はやく いってやりなさい。\nこの むらの ことは わしに まかせろ。',
   minister:'これは これは、だいじんどの。ようこそ むらへ。\nぜいきんの ことで……え、ちがう？',
   hermit:'おお……ほこらの ひと。ひゃくねん ぶりの おでましとは！\nやどやで ゆっくり していってくだされ。',
@@ -1360,21 +1589,21 @@ alt('mayor','むらちょう',{
 // ---------- みなと村 ----------
 alt('v2a','おとこのこ',{
   vb:'おじさんが Bさん？ むすめさんの おみまいに きたの？\nあっちの いえだよ！ がんばって！',
-  mayor:'むらちょうさま だ！ ぼく、おおきく なったら むらちょうに なる！\n……え、むり？',
+  mayor:'そんちょうさま だ！ ぼく、おおきく なったら そんちょうに なる！\n……え、むり？',
   minister:'ぎょうせいふくの おじさんだ！\nねえ、ふねのりば もっと ふやしてよ！',
   hermit:'おじいちゃん、ひげ ながい！ さわって いい？',
   gal:'ギャルねえちゃんだ！ ママが いってた、\nむすめは いつも ばたばた してるって！',
   rogue:'おじさん、ろうやに はいってた ひと でしょ？\nでも ちょっと かっこいい……。'});
 alt('v2b','ろうじん',{
   vb:'ほう、Bどのか。ほねおやぶんの ところへは いくでないぞ。\nむすめさんの いえへ まっすぐ じゃ。',
-  mayor:'おお、むらちょう。ずいぶん むかしだが、あんたの いえに ともだちが おったもんじゃ。',
+  mayor:'おお、そんちょう。ずいぶん むかしだが、あんたの いえに ともだちが おったもんじゃ。',
   minister:'だいじんさまが みなと村に？ ここの さかなは うまいぞ。\nぜいきんは たかいがの。',
   hermit:'おお、ほこらの ひと。ひゃくねん みなかったが、ちっとも かわらんな。',
   gal:'おお、ギャルの むすめか。ヨイヤミの ショーは ひがしの はてじゃ。\nとちゅうの ごろつきに きをつけての。',
   rogue:'おぬし……かおに ぬすっとの あとが ついておるぞ。\n……じょうだんじゃ。さけでも のむか？'});
 alt('fisher','つりびと',{
   vb:'さかなの スープは ねつに いいと きくぞ。\nむすめさんに もってってやんな。',
-  mayor:'むらちょうさま、さかなは いかがです？\nきょうの できは ばつぐんですよ。',
+  mayor:'そんちょうさま、さかなは いかがです？\nきょうの できは ばつぐんですよ。',
   minister:'だいじんさま！ この ぎょぎょうけん、もうすこし ひろげてもらえませんか。',
   hermit:'ごろうにん、ひゃくねんぶりの さかなは いかが ですかい？',
   gal:'ギャルちゃんじゃないか！ ヨイヤミの ショーに さかなの かざり なんて どうだ？',
@@ -1382,88 +1611,88 @@ alt('fisher','つりびと',{
 alt('motherB','となりの おばさん',{
   hero:'ねつの むすめを みているの。\nゆうしゃさま、どうか はやく まおうを……。',
   vb:'あなたが Bさん？ むすめさん、ずっと あなたを まっていたのよ。\nおくの ベッドで ねているわ。はやく！',
-  mayor:'ねつの むすめを みんなで みまもっているの。\nむらちょうさまも おみまい ですか？',
+  mayor:'ねつの むすめを みんなで みまもっているの。\nそんちょうさまも おみまい ですか？',
   minister:'だいじんさま、この むすめさんは ねつが ひどくて……。いしゃを よこして くださいませんか。',
   hermit:'ごろうにんの おじいさん、むすめを みて いただけませんか。ほこらの ちからで……。',
   gal:'あら、ギャルちゃん。むすめが きらきら した ものを みたがって いるの。リボンを みせてあげて？',
   rogue:'ひっ！ ……おおきな こえは だめよ。むすめが ねているの。'});
 alt('daughter','ねつの むすめ',{
-  mayor:'こほっ……むらちょうさま？ おみまい ありがとう……。',
+  mayor:'こほっ……そんちょうさま？ おみまい ありがとう……。',
   minister:'こほっ……だいじんさま？ こんな ちいさな いえに……。',
   hermit:'こほっ……おじいさん、あたたかい かんじが する……。',
   gal:'こほっ……ギャルおねえちゃん？ きらきら してて、きれい……。',
   rogue:'こほっ……こわい おじさん？ ……でも わるい ひとじゃ ない きが する……。'});
 alt('galmom','ギャルの ママ',{
   vb:'Bさん、むすめさんの ことは きいたわ。\nうちの むすめも だいぶ やんちゃで……。',
-  mayor:'むらちょうさま、うちの むすめが ごめいわくを おかけして ませんか？',
+  mayor:'そんちょうさま、うちの むすめが ごめいわくを おかけして ませんか？',
   minister:'だいじんさま、うちの むすめの ファッションショーを どうか おうえん してやって くださいな。',
   hermit:'あら、ほこらの おじいさん。うちの むすめに おしゃれの こころを おしえて やって くださらない？',
   rogue:'ひっ！ ……おねがい、むすめには てを ださないで！'});
 // ---------- たかね村 ----------
 alt('v3a','むらびと',{
   vb:'ひがしの ほのおの洞窟は あついぞ。\nBさん、むすめさんの ことは おいのり している。',
-  mayor:'むらちょうさま、ここまで？\nてがみを かくすなら ほのおの洞窟の ほうが あんぜん かもな。',
+  mayor:'そんちょうさま、ここまで？\nてがみを かくすなら ほのおの洞窟の ほうが あんぜん かもな。',
   minister:'だいじんさま、ちょうど よい ところに。\nおやしきの どうろ、もうすこし なおして くれませんか。',
   hermit:'ほこらの ごろうにんが ここまで？ ……ひさしぶりの ひとだ。',
   gal:'ギャルが ひとりで ヨイヤミへ？ あの むらは やみが ふかい。\nおおきな こえで うたって いけ。',
   rogue:'おい、ろうやの ごろつき じゃ ねえか！ にげだした のか？\n……おれは なにも みていない。'});
 alt('v3b','おんなのこ',{
   vb:'おじさん、むすめさんの ところへ いくの？\nろうやの ほうは ちかづかないほうが いいよ！',
-  mayor:'むらちょうさま、ろうやの おじさんが ずっと ひとりごと いってるよ。「おたからが……」って。',
+  mayor:'そんちょうさま、ろうやの おじさんが ずっと ひとりごと いってるよ。「おたからが……」って。',
   minister:'おじさん、おやしきの おえらいさん？ おしごと、たいへん そう。',
   hermit:'おじいちゃん、ほんとうに ほこらから きたの？ すごく とおいよ！',
   gal:'おねえちゃん、そのかみ ツヤツヤ！ どこの シャンプー？',
   rogue:'ひっ……ろうやから でてきた おじさん だ……。\nままー！ ごろつきが いるー！'});
 alt('maid','メイド',{
   vb:'あら、おきゃくさま。おやしきの かたは いま ごふざい ですわ。',
-  mayor:'まあ、むらちょうさま！ おやくそくは ありましたかしら？',
+  mayor:'まあ、そんちょうさま！ おやくそくは ありましたかしら？',
   minister:'だいじんさま！ おかえりなさいませ。\nおへやの しょるいは あいかわらず やまの ように……。',
   hermit:'まあ、ごろうにんの おきゃくさま。おちゃを ごよういしますわ。',
   gal:'まあ！ なんて すてきな ドレス。\nおやしきの おんなのこ たちが あこがれますわ。',
   rogue:'きゃっ！ ……ろうやの ごろつき！？\nだいじんさまに ほうこく しますわ！'});
 alt('rogueCell','ごろつき',{
   vb:'へっ、ろうやに ようじか？\nひとの いえに もぐりこむ ような ものじゃ ねえぜ。',
-  mayor:'おっ、むらちょうさん。なにか ぬすんで ほしい もんでも あるか？\n……じょうだんだ。',
+  mayor:'おっ、そんちょうさん。なにか ぬすんで ほしい もんでも あるか？\n……じょうだんだ。',
   minister:'だいじんさんよ、そのウデじゃ しょるいの まちがいも ねえんだろうな？\nここから きいてるぜ。',
   hermit:'じいさん、ほこらからか？ おれの ほこらは ここだ。\nくさい めしは むりやり つきだされる。',
   gal:'おお、ギャルか。ここから みてると ステージの ひかりが まぶしいぜ。'});
 alt('guardJail','かんしゅ',{
   vb:'ぐぅー……むにゃ、むすめ さんが……ぐぅー……。',
-  mayor:'ぐぅー……むにゃ、むらちょう さま……ごほうこく……。',
+  mayor:'ぐぅー……むにゃ、そんちょう さま……ごほうこく……。',
   minister:'ぐぅー……むにゃ、だいじん さま……おんしゃ……。',
   hermit:'ぐぅー……むにゃ、ひげの おじいさん……ひゃくねん……。',
   gal:'ぐぅー……むにゃ、ギャル……ふぁっしょん……。'});
 // ---------- ヨイヤミの村 ----------
 alt('elder4','むらの ちょうろう',{
   vb:'Bどのか。むすめさんの ことは ききましたぞ。\nここは ヨイヤミ、ほくせいへ もどる みちは とおいぞ。',
-  mayor:'おお、むらちょうどの。ちかいの手紙なら ひがしの まおう城が いちばん あやしい。',
+  mayor:'おお、そんちょうどの。ちかいの手紙なら ひがしの まおう城が いちばん あやしい。',
   minister:'だいじんさま！ しょるいなら ひがしの まおう城じゃ。\nおわったら、ここで やすんで いきなされ。',
   hermit:'ほこらの ひとが ヨイヤミの むらへ？ ふふ、ここの やみは あんがい あたたかいぞ。',
   gal:'ギャルどの、ステージは いりぐちの すぐ ちかく。わが むらの ほこりじゃ。',
   rogue:'ほう、ごろつきか。ここヨイヤミは ひかりが とおい。\nおぬしの ような ものでも うけいれる むらじゃ。'});
 alt('v4a','むらびと',{
   vb:'ここは ヨイヤミの むら。Bさん、むすめさんの もとへ いくなら ほくせいへ みちを もどれ。',
-  mayor:'むらちょうさまが わざわざ ヨイヤミまで？ てがみ、でていないと いいが。',
+  mayor:'そんちょうさまが わざわざ ヨイヤミまで？ てがみ、でていないと いいが。',
   minister:'だいじんさま！ ここの しょるいは ぜんぶ まおうの はんこ だらけ だ。',
   hermit:'ごろうにん、ここまで ようこそ。ひがしの まおう城は わらいごえで うるさいぞ。',
   gal:'ギャルちゃん、おうえん してるよ！ ステージは ブティックの ひがしだ！',
   rogue:'おい、ごろつき。ここまで きたからには てを ださないって やくそく しろよ。'});
 alt('v4b','おとこのこ',{
   vb:'おじさん、あしが ふるえてるよ？ だいじょうぶ？\nぼくが おうえん するよ！',
-  mayor:'おじいちゃん、むらちょうさん？ ここまで きたの？ すごい！',
+  mayor:'おじいちゃん、そんちょうさん？ ここまで きたの？ すごい！',
   minister:'おじさん、しょるいの かばん おもそう！ もってあげようか？',
   hermit:'おじいちゃん、ほこらから きたの？ ひゃくねんも？ すごいなあ！',
   gal:'おねえちゃんが ショーに でるの？ ぼく、いちばん まえで みる！',
   rogue:'おじさん、わるい ひと？\nでも ほんとうは さみしい かおを してる……。'});
 alt('boutique','ブティックの てんしゅ',{
   vb:'いらっしゃい。おとうさん、むすめさんへの プレゼントは いかが？\n……え、ちがうの？',
-  mayor:'むらちょうさま！ ほうこくの スーツ、おしたて いたしましょうか？',
+  mayor:'そんちょうさま！ ほうこくの スーツ、おしたて いたしましょうか？',
   minister:'だいじんさま、ぎょうせいふくの クリーニングは いかが です？',
   hermit:'ごろうにんさま、あたたかい ころもは いかが？ ほこらは ひえるでしょう？',
   rogue:'ひっ……ごろつき！ ぬすみは だめよ！\nおみせの ものは ぜんぶ かぞえて あるんだから！'});
 alt('model','モデル',{
   vb:'ここが ショーの ステージ。おとうさんも、かんきゃくせきで どう？',
-  mayor:'むらちょうさま、ステージの ちゅうおう、いかがです？ ……ちがう？',
+  mayor:'そんちょうさま、ステージの ちゅうおう、いかがです？ ……ちがう？',
   minister:'だいじんさま、ファッションも せいじも、みためが だいじ ですよ！',
   hermit:'ごろうにんさまも モデルに なれますよ！ ひげが ぜっこうの アクセントです！',
   rogue:'……あなた、こわい かおね。でも ステージで きゅうけつき やくなら ぴったり！'});
@@ -1475,17 +1704,86 @@ alt('hermit1','ほこらの 人',{
   rogue:'……おぬし。ろうやの においが する。\nゆうしゃの ほうを むいて あるけ。ほしの ほこらが まっておる。'});
 alt('hermit2','ほこらの ばあさん',{
   vb:'おや Bどの。むすめさんの ために この ほこらで いのっていくと いい。',
-  mayor:'むらちょうどの、てがみ なら こだまの洞窟より ねむりの洞窟 だと きいたが……。',
+  mayor:'そんちょうどの、てがみ なら こだまの洞窟より ねむりの洞窟 だと きいたが……。',
   minister:'だいじんどの、しょるいを かかえて ほこらへ とは。ごくろうさま じゃ。',
   hermit:'おぬしは……ほこらの ごろうにん。ひさしぶり じゃな、あにさん。',
   gal:'おじょうちゃん、ほこらで おしゃれとは ふぁっしょん だのう。ふふ。',
   rogue:'おぬし、わるい かおを しとるな。じゃが めは しんじつを みつめて おる。きに いった。'});
 alt('hermit3','ほこらの 人',{
   vb:'ほしは しっておる。むすめを おもう ちちの こころを。',
-  mayor:'ほしは むらちょうの てがみの ありかを しっておる。ねむりの洞窟の おくじゃ。',
+  mayor:'ほしは そんちょうの てがみの ありかを しっておる。ねむりの洞窟の おくじゃ。',
   minister:'ほしは しょるいの ゆくえを しっておる。まおう城へ とどけよ。',
   hermit:'……ほう、ほこらの ごろうにん。おなじ ほしの もとの ものどうし。たまには ほしを みあげようぞ。',
   gal:'ほしの ひかりは おぬしの ステージを てらすじゃろう。きらきら しておる。'});
+
+'use strict';
+// ===== ニャンコ編: ？？？ もう１つの にゃん生 ？？？ =====
+// 三毛猫ミケが 各町の ねこを なかまに して、つりたいかいの さかなを ごうだつする。
+const catN=()=>['kuro','tora','shiro','yami'].filter(k=>G.f[k]).length;
+const catShow=k=>()=>G.story==='cat'&&!G.f[k];
+const MK='ミケ';
+const joinMsg=async(k,nm)=>{G.f[k]=1;sfx('win');await say(`${nm}が なかまに なった！（なかま ${catN()}/4）`);if(catN()===4)await say('これで ぜんいん そろった！\nみなと村の つりばし（かんりにんの いる ばしょ）へ むかおう。');};
+npc('cat_kuro','v1',2,9,'cat_kuro',async()=>{
+  await say('ふん。ひるねの じゃまを するな。','クロ');
+  while(true){
+    const i=await choose(['さかなの はなしを する','ごろごろ すりよる','ひっかく'],{x:240,y:150,w:230});
+    if(i===0)break;
+    if(i===1)await say('……ごろごろ されても ごまかされん。','クロ');
+    else await say('ひっかきかえされた！ いたい！\nミケは そっと あたまを さげた。');
+  }
+  await sayAll(['みなと村の つりたいかいの おおものを、ぜんぶ いただく けいかくよ。','さかな……だと？ しかも うみ神さまの さかな……。\n……のった。くらがりの しごとなら まかせろ。'],'');
+  await joinMsg('kuro','クロ');
+},catShow('kuro'),0);
+npc('cat_tora','v2',19,12,'cat_tora',async()=>{
+  if((G.pc.items['やきざかな']||0)<=0){
+    await sayAll(['はらが へって うごけねえ……。','やきざかな 1ぴき もってきたら、はなしぐらい きいてやる。\nつりばしの はしっこで つれるぜ。'],'トラ');return;}
+  G.pc.items['やきざかな']--;if(G.pc.items['やきざかな']<=0)delete G.pc.items['やきざかな'];
+  await sayAll(['(ミケは やきざかなを そっと さしだした)','うまい！ ……で、なんの はなしだ？','……つりたいかいの さかなを ごうだつ？ のった、のった！\nただし ぶんまえは おれが おおめ だ。'],'トラ');
+  await joinMsg('tora','トラ');
+},catShow('tora'),0);
+npc('cat_shiro','v3',5,19,'cat_shiro',async()=>{
+  if(catN()<2){await sayAll(['ひとりで やるのは、こわいの……。','もう すこし なかまが いるなら、いっしょに いってあげる。'],'シロ');return;}
+  await sayAll(['まあ、もう ふたりも いるのね。それなら あんしん。','さかなの ごうだつ……？ ふふ、おじょうひんな わたしに ぴったり。\n……ゆうわく は、おまかせ ください。'],'シロ');
+  await joinMsg('shiro','シロ');
+},catShow('shiro'),0);
+npc('cat_yami','v4',14,18,'cat_yami',async()=>{
+  if(catN()<3){await sayAll(['……ひかりは、にがて。','さんにん ぐらい そろったら また きなさい。'],'ヤミ');return;}
+  await sayAll(['……ふふ。よる の けはいが する。','さかなの ごうだつ。うみ神の さかな。\nいい ひびき だわ。……この ヤミが ちからを かそう。'],'ヤミ');
+  await joinMsg('yami','ヤミ');
+},catShow('yami'),0);
+const HUMAN_LINES=['あら ノラねこちゃん。……ふふ、かわいい。','しっ、しっ！ むこうへ いきなさい。','ねこが こっちを みてる……。','にゃーん♪ ……あれ、つうじてないか。','さかなは ないよ。ほら、あっちへ おゆき。'];
+async function catTalk(n){
+  if(n.id.startsWith('cat_')){await n.talk();return;}
+  if(n.id==='harbor'){await catHeist();return;}
+  await say(HUMAN_LINES[(n.x+n.y)%HUMAN_LINES.length],'にんげん');
+  await say('(にんげんの ことばは、ミケには ただの おとに きこえた)');
+}
+async function catHeist(){
+  if(catN()<4){await sayAll(['おや、のらねこか。つりたいかいの さかなには ちかづくなよ！','しっし！'],'みなとの かんりにん');await say('(……まだ ひとりじゃ ぶが わるい。なかまを あつめよう)');return;}
+  if(!G.f.plan){
+    G.f.plan=1;
+    await sayAll(['ミケ「みんな、けいかくを おさらい するわ」','ミケ「クロは かげから ようすを みはる」\nクロ「……まかせろ」','ミケ「トラは かんりにんの あしもとで ごろにゃん」\nトラ「ぶんまえ、わすれんなよ」','ミケ「シロは つりびとを ゆうわく して」\nシロ「おほほ、おまかせ」','ミケ「ヤミは あかりを けして。……わたしが つる！」\nヤミ「……ふふ、よるが くる」']);
+  }
+  while(true){
+    const i=await choose(['さくせんを じっこう する','もうすこし じゅんび する'],{x:150,y:130,w:300,cancel:1});
+    if(i!==0){await say('ミケ「あわてない、あわてない。ねこは まつのが とくい」');return;}
+    await say('ミケ「さくせん かいし！ 3かい なげて、2かい つりあげれば かち よ！」');
+    let n=0;
+    const ROLE=['クロ「(かげから かんりにんを みはる)……いまだ、ミケ」','トラ「(かんりにんの あしもとで ごろにゃん)……ふあぁ」','シロ「(つりびとを ゆうわく)……ふふ、こっちを みて」'];
+    const WIN=[900,800,700];
+    for(let k=1;k<=3;k++){
+      await say(ROLE[k-1]);await say(`${k}かいめ！ ひげが ぴくぴく する……！${k===3?'\nヤミ「……あかりを けすわ」':''}`);
+      if(await castLine(WIN[k-1])){n++;await say('つれた！！ うみ神さまの さかなが ゆれている……！');}
+      else await say('にげられた！ ……かんりにんが ふりむきかけた！');
+    }
+    G.fish=null;
+    if(n>=2){
+      await sayAll(['ぱっくん！ ミケは さかなを くわえて ダッシュ！','「あっ！ さかなが ない！？ どろぼうねこ だー！！」','クロ「にげろ！」 トラ「うまそうだ！」 シロ「きゃー！」 ヤミ「……あかり、けしたわ」'],'');
+      await finishStory();return;
+    }
+    await sayAll(['かんりにん「……いま、なにか うごいたか？」','ミケ「(……しっぱい。でも ばれて ない。もういちど、やりなおし よ)」']);
+  }
+}
 
 'use strict';
 // ===== bgm: 外部音源なし。Web Audio でその場で曲を生成するジェネラティブBGM =====
@@ -1713,7 +2011,7 @@ async function warpTo(id,x,y,doFade=true,auto=true){
   G.map=MAPS[id];G.px=x;G.py=y;G.mv=null;G.steps=0;
   if(G.map.kind==='village')G.home=id;
   refreshMap();
-  G.banner={text:G.map.id==='world'?worldName(x,y):G.map.name,t:110};G.wname=G.map.id==='world'?worldName(x,y):null;
+  G.banner={text:(G.map.id==='world'?worldName(x,y):G.map.name)+(G.map.kind==='village'&&typeof villageTag==='function'?villageTag(G.map.id):''),t:110};G.wname=G.map.id==='world'?worldName(x,y):null;
   if(doFade)await fade(0,220);
   if(auto&&G.mode==='map'&&G.pc)autoSave();
 }
@@ -1877,6 +2175,7 @@ function drawTitle(){
   text('だれの ものがたり？',W/2-tw('だれの ものがたり？',40)/2+W/2-W/2,110,'#ffd23f',40);
   text('～ ひとびと伝説 ～',W/2-tw('～ ひとびと伝説 ～',22)/2,170,'#fff',22);
   const cs=['hero','vb','mayor','minister','hermit','gal','rogue'];
+  try{if(clearedList().includes('cat'))cs.push('cat_mike');}catch(e){}
   cs.forEach((s,i)=>drawChar(ctx,W/2-cs.length*20+i*40,230+Math.sin(G.tick/10+i)*4,s,0,0));
   if((G.tick>>5)&1)text('PRESS  A  (タップ)',W/2-tw('PRESS  A  (タップ)',20)/2,360,'#fff',20);
   text('ぼうけんは ゆうしゃ から はじまる……？',W/2-tw('ぼうけんは ゆうしゃ から はじまる……？',14)/2,400,'#8af',14);
@@ -1898,6 +2197,7 @@ function draw(){
   ctx.restore();
 }
 function frame(){
+  if(G.paused){pollPad();requestAnimationFrame(frame);return;}
   G.tick++;pollPad();
   uiUpdate();if(pressed.a)G.apress=(G.apress||0)+1;
   if(G.mode==='map'&&G.map)npcWander(!UI.length&&!G.busy&&!G.fish);
@@ -2054,5 +2354,88 @@ function drawAtmos(m,cx,cy){
     text('axes: '+PADINFO.axes.join(' '),22,82,'#fff',13);
     ctx.restore();};
 })();
+
+'use strict';
+// ===== 世界の ひろがり: 時間帯・水と光・人生のつながり(後日談)・町の時間イベント =====
+const PH_LEN=5400,PHN=['あさ','ゆうがた','よる'];
+G.clock=0;G.lastPh=0;
+const phaseNow=()=>Math.floor(G.clock/PH_LEN)%3;
+const dayCycle=()=>Math.floor(G.clock/(PH_LEN*3));
+const TINT=[[255,236,190,.05],[255,125,55,.18],[8,14,66,.46]];
+function isDusk(m){return m.id==='v4'||(m.id==='world'&&typeof worldZone==='function'&&worldZone(G.px,G.py)===4);}
+function dayTint(m){
+  if(isDusk(m))return[150,70,150,.16];
+  const p=phaseNow(),f=(G.clock%PH_LEN)/PH_LEN,a=TINT[p],b=TINT[(p+1)%3],k=f>.85?(f-.85)/.15:0;
+  return a.map((v,i)=>v+(b[i]-v)*k);
+}
+function drawWorldFx(m,cx,cy){
+  if(G.mode!=='map')return;
+  if(!UI.length&&!G.busy)G.clock++;
+  const ph=phaseNow();
+  if(ph!==G.lastPh){G.lastPh=ph;if((m.kind==='village'||m.kind==='world')&&!G.busy)G.banner={text:['あさに なった！','ひが かたむいてきた……','よるに なった……'][ph],t:110};}
+  if(m.kind!=='village'&&m.kind!=='world')return;
+  const x0=Math.max(0,Math.floor(cx/T)),x1=Math.min(m.w-1,Math.floor((cx+W)/T)),y0=Math.max(0,Math.floor(cy/T)),y1=Math.min(m.h-1,Math.floor((cy+H)/T));
+  const t=G.tick,tn=dayTint(m),night=Math.max(0,Math.min(1,(tn[3]-.1)/.24));
+  ctx.save();
+  // 水面: ゆれる光の筋ときらめき
+  ctx.lineWidth=1.2;ctx.lineCap='round';
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    if(m.g[y][x]!=='~')continue;
+    const px=x*T-cx,py=y*T-cy,p=t*.05+x*1.7+y*2.3,a=.1+.13*Math.sin(p);
+    if(a>0){ctx.strokeStyle=`rgba(255,255,255,${a})`;const yy=py+10+Math.sin(p*.7)*3;ctx.beginPath();ctx.moveTo(px+5,yy);ctx.quadraticCurveTo(px+16,yy-3,px+27,yy);ctx.stroke();}
+    if(((t>>3)+x*5+y*11)%27===0){ctx.fillStyle='rgba(255,255,255,.85)';const gx=px+6+((x*13+y*7)%18),gy=py+8+((x*5+y*3)%16);ctx.fillRect(gx,gy,2,1.2);ctx.fillRect(gx+.5,gy-1,1,3.2);}
+  }
+  // 時間帯の色
+  if(tn[3]>.02){ctx.fillStyle=`rgba(${tn[0]|0},${tn[1]|0},${tn[2]|0},${tn[3]})`;ctx.fillRect(0,0,W,H);}
+  // 灯り: 夜は足もとに光だまり、灯台は光の帯
+  ctx.globalCompositeOperation='lighter';
+  for(let y=y0-1;y<=y1+1;y++)for(let x=x0-1;x<=x1+1;x++){
+    const c=m.g[y]&&m.g[y][x];if(!c)continue;
+    const sx=x*T-cx+16,sy=y*T-cy;
+    if((c==='l'||c==='p')&&night>.05){const fl=.9+.1*Math.sin(t*.13+x*3),r=54*fl,q=ctx.createRadialGradient(sx,sy+22,2,sx,sy+22,r);q.addColorStop(0,`rgba(255,200,110,${.42*night})`);q.addColorStop(1,'rgba(255,200,110,0)');ctx.fillStyle=q;ctx.fillRect(sx-r,sy+22-r,r*2,r*2);}
+    if(c==='I'){const a=t*.022,k=.1+.3*night;
+      for(const d of[0,Math.PI]){ctx.save();ctx.translate(sx,sy+5);ctx.rotate(a+d);const gr=ctx.createLinearGradient(0,0,190,0);gr.addColorStop(0,`rgba(255,240,170,${k})`);gr.addColorStop(1,'rgba(255,240,170,0)');ctx.fillStyle=gr;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(190,-26);ctx.lineTo(190,26);ctx.closePath();ctx.fill();ctx.restore();}
+      const hg=ctx.createRadialGradient(sx,sy+5,1,sx,sy+5,22);hg.addColorStop(0,`rgba(255,240,170,${.5*(.4+night)})`);hg.addColorStop(1,'rgba(255,240,170,0)');ctx.fillStyle=hg;ctx.fillRect(sx-22,sy-17,44,44);}
+  }
+  ctx.restore();
+}
+{const _atm=drawAtmos;drawAtmos=function(m,cx,cy){_atm(m,cx,cy);drawWorldFx(m,cx,cy);};}
+
+// ---- 町の じかんイベント ----
+function villageTag(id){
+  const p=phaseNow();
+  if(id==='v2'&&p===0)return '　～朝市～';
+  if(id==='v3'&&p===2)return '　～星見の よる～';
+  if(id==='v4')return '　～よいやみの うたげ～';
+  return '';
+}
+async function worldPost(n){   // 話しかけたあとの おまけ(町イベント)
+  const p=phaseNow(),cy=dayCycle();
+  if(n.id==='stargazer'&&p===2&&G.pc&&!G.f['star'+cy]){G.f['star'+cy]=1;G.pc.mp=G.pc.mmp;sfx('win');
+    await sayAll(['ほしぞらを ふたりで みあげた。','……こころが すうっと かるくなる。\n（MPが ぜんかいふくした！）']);}
+  if(n.id==='dancer'&&p>=1&&G.pc&&!G.f['dance'+Math.floor(G.clock/PH_LEN)]){G.f['dance'+Math.floor(G.clock/PH_LEN)]=1;G.pc.hp=G.pc.mhp;G.pc.mp=G.pc.mmp;sfx('win');
+    await sayAll(['かげおどりの わに さそわれた！\nひとびとと いっしょに おどる……。','からだじゅうに ちからが わいてきた！\n（HPとMPが ぜんかいふくした！）']);}
+}
+// ---- 人生のつながり(ほかの人生をクリアすると、町の人の話が変わる) ----
+const ECHO={
+  daughter:[['vb','むすめ','パパが ようすを みに きてくれたの！\nもう ねつ、すっかり さがったよ。']],
+  wifeB:[['vb','おかみさん','うちの ひと、むすめの ところへ とんでいったわ。\nくわを もったまま よ。']],
+  inn1:[['hermit','やどの あるじ','さいきん、ほこらの ごろうにんが スープを のみに きたよ。\nなみだぐんで しまってね。']],
+  boutique:[['gal','ブティックの てんいん','みなと村の ギャルちゃん、ショーで ゆうしょう したのよ！\nあの リボン、うちの おみせのなの。']],
+  galmom:[['gal','ギャルの ママ','うちの こ、ショーで ゆうしょう したの！ ママ なきそう！']],
+  guardJail:[['rogue','ろうやの かんしゅ','あの ごろつき……たからを ほこらへ とどけた と きく。\nみょうな やつ だ。']],
+  harbor:[['cat','みなとの かんりにん','きいてくれ。つりたいかいの さかなの たいが きえたんだ。\nそれに さいきん、のらねこが まるまる ふとって いる……。']],
+  fishvend:[['cat','さかなやの おかみ','うちの さかなも ねこに ぬすまれたわ。\nまったく、あの みけねこ！']],
+  netman:[['cat','あみつくろいの ろうじん','あみに ねこの あしあとが……。\nうみ神さまも あきれて おられよう。']]
+};
+async function echoTalk(n){
+  const e=ECHO[n.id];if(!e)return;
+  const cl=clearedList();
+  for(const [sid,name,line] of e){
+    if(G.story===sid||!cl.includes(sid))continue;
+    const key='ech_'+n.id+sid;if(G.f[key])continue;G.f[key]=1;
+    await say(line,name);
+  }
+}
 
 </script></body></html>

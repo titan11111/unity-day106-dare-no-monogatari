@@ -40,7 +40,7 @@ namespace DareNoMonogatari
         Pc pc; string story = ""; HashSet<string> flags = new HashSet<string>(); int gold; string home = "v1";
         MapDef map; char[][] grid; int px, py, dir, steps; bool busy;
         string cardText = ""; string banner = ""; float bannerT; float fadeA = 1f;
-        bool creditsDone;
+        bool creditsDone, catHint;
 
         // ---- 表示 ----
         Camera cam; Transform mapRoot; SpriteRenderer[,] tiles; GameObject playerGo; SpriteRenderer playerSr;
@@ -405,7 +405,7 @@ namespace DareNoMonogatari
             if (c.id == "c1b" && story == "mayor")
             {
                 flags.Add("letter");
-                yield return Say("はこの おくに ふるびた ふうとうが ある！\nむらちょうは『ちかいの手紙』を てにいれた！");
+                yield return Say("はこの おくに ふるびた ふうとうが ある！\nそんちょうは『ちかいの手紙』を てにいれた！");
                 yield return FinishStory(); yield break;
             }
             if (c.id == "c3b" && story == "rogue")
@@ -509,15 +509,18 @@ namespace DareNoMonogatari
         {
             mode = Mode.Select; cardText = "";
             var cl = ClearedList();
-            if (cl.Count >= 7 && afterEnd && !creditsDone) { creditsDone = true; yield return Credits(); yield break; }
+            bool all7 = D.order.All(id => cl.Contains(id));
+            if (afterEnd && cl.Contains("cat") && !creditsDone) { creditsDone = true; yield return Credits(); yield break; }
             if (afterEnd) yield return Say("？これは、だれの ものがたり だったのか……。\nだれかに とっては、ここからが はじまり。");
+            if (afterEnd && all7 && !cl.Contains("cat") && !catHint) { catHint = true; yield return Say("……にゃあ。\nどこかで、ねこの なきごえが した。\n(？？？ もう１つの にゃん生 が ひらかれた！)"); }
             while (true)
             {
                 bool unlocked = cl.Contains("hero");
-                var dis = D.order.Select((id, i) => i > 0 && !unlocked).ToArray();
-                var opts = D.order.Select((id, i) => (cl.Contains(id) ? "★ " : "　") + (dis[i] ? "？？？" : chars[id].label)).ToArray();
-                yield return Choose(opts, afterEnd ? "だれの じんせいを あゆむ？" : "まずは ゆうしゃを えらぼう", false, 60, 50, 392, dis);
-                yield return StartStory(D.order[chosen]); yield break;
+                var ids = D.order.ToList(); if (all7 && chars.ContainsKey("cat")) ids.Add("cat");
+                var dis = ids.Select((id, i) => i > 0 && !unlocked).ToArray();
+                var opts = ids.Select((id, i) => (cl.Contains(id) ? "★ " : "　") + (dis[i] ? "？？？" : chars[id].label)).ToArray();
+                yield return Choose(opts, afterEnd ? "だれの じんせいを あゆむ？" : "まずは ゆうしゃを えらぼう", false, 40, 30, 432, dis);
+                yield return StartStory(ids[chosen]); yield break;
             }
         }
 
@@ -556,7 +559,7 @@ namespace DareNoMonogatari
         IEnumerator Credits()
         {
             yield return Fade(1f, .5f); mode = Mode.Card; cardText = "FIN"; yield return Fade(0f, .5f);
-            foreach (var s in new[] { "ゆうしゃ、むらびと、むらちょう、だいじん、ほこらの ひと、ギャル、ごろつき。", "だれも が、どこかの ものがたりの しゅやく だった。", "――あなたの ものがたりも、きっと。", "ありがとうございました！" })
+            foreach (var s in new[] { "ゆうしゃ、むらびと、そんちょう、だいじん、ほこらの ひと、ギャル、ごろつき、そして ねこ。", "だれも が、どこかの ものがたりの しゅやく だった。", "――あなたの ものがたりも、きっと。", "ありがとうございました！" })
                 yield return Say(s);
             yield return Fade(1f, .6f); cardText = "";
             if (playerGo != null) playerGo.SetActive(false);
@@ -579,12 +582,13 @@ namespace DareNoMonogatari
             Func<string, bool> f = flags.Contains;
             switch (story)
             {
-                case "hero": return !f("mayor1") ? "むらちょうに はなしを きこう（むらの いえの おく）" : !f("hermit1") ? "きたにしの はじまりの祠へ いこう" : !f("b1") ? "ねむりの洞窟（みなみ）の プルンキングを たおせ" : !f("b2") ? "みなと村の ちかくの こだまの洞窟へ。しょうしょう つよく なって から" : !f("b3") ? "たかね村の ちかくの ほのおの洞窟の ドラゴンを たおせ" : "ヨイヤミ村の ひがし、まおう城へ！";
+                case "hero": return !f("mayor1") ? "そんちょうに はなしを きこう（むらの いえの おく）" : !f("hermit1") ? "きたにしの はじまりの祠へ いこう" : !f("b1") ? "ねむりの洞窟（みなみ）の プルンキングを たおせ" : !f("b2") ? "みなと村の ちかくの こだまの洞窟へ。しょうしょう つよく なって から" : !f("b3") ? "たかね村の ちかくの ほのおの洞窟の ドラゴンを たおせ" : "ヨイヤミ村の ひがし、まおう城へ！";
                 case "vb": return !f("med") ? "つまから くすりを うけとろう" : "みなと村の むすめに くすりを とどけよう（きたの おか を こえた むこう）";
                 case "mayor": return !f("hermit1m") ? "はじまりの祠（きたにし）の ひとに はなしを きこう" : "ねむりの洞窟（みなみ）の おくの たからばこを さがせ";
                 case "minister": return "『まおうとの しょるい』を まおう城へ とどけよう（ヨイヤミ村の ひがし）";
                 case "hermit": return "山を おりて はじまりの村の やどやで スープを たべよう";
                 case "gal": return !f("ribbon") ? "ヨイヤミ村の ブティックで リボンを もらおう" : "ステージの モデルに はなしかけよう";
+                case "cat": { int n = new[] { "kuro", "tora", "shiro", "yami" }.Count(f); return n < 4 ? "なかまを あつめよう（のこり " + (4 - n) + "ひき）：はじまりの村・みなと村・たかね村・ヨイヤミの村" : "みなと村の つりばし（つりたいかいの かんりにん）で さくせんを じっこうしよう"; }
                 case "rogue": return !f("key") ? "ろうやの かんしゅから カギを ぬすもう" : !f("loot") ? "ほのおの洞窟の たからばこを あけろ" : !f("donated") ? "たかね村の ほくとう ほし見の祠へ たからを とどけろ" : "……";
             }
             return "";

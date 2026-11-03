@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>だれの ものがたり？ ～ひとびと伝説～</title>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+*{-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;background:#000;color:#fff;overflow:hidden;overscroll-behavior:none;touch-action:none;font-family:'DotGothic16',monospace}
+body{position:fixed;inset:0;width:100%}
+/* ===== 画面レイアウト（縦持ち）：上にゲーム画面、残りぜんぶを操作エリアに使う ===== */
+#app{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:100vh;height:100dvh;padding-top:env(safe-area-inset-top);box-sizing:border-box}
+canvas{width:min(100vw,640px,calc((100dvh - 230px - env(safe-area-inset-top))*512/448));background:#000;display:block;touch-action:none;flex:none}
+/* 操作エリア。位置・大きさは JS(layoutCtl) が --u(=Aボタンの直径) を決めて、そこから全部を割り出す */
+#ctl{--u:80px;--pad:12px;position:relative;flex:1 1 auto;width:min(100vw,640px);min-height:190px;touch-action:none;
+  --dp:calc(var(--u)*2.3);--B:calc(var(--u)*.86);--hit:calc(var(--u)*.09);--op:.82}
+button,.pad{font:inherit;touch-action:none}
+button{background:#1a1f3a;color:#fff;border:3px solid #fff;border-radius:14px;font-size:22px;padding:0;transition:transform .05s,background .05s}
+button.on,.pad.on{background:#6a7cff;transform:scale(.94)}
+/* 十字キー：見た目は丸いパッド。タッチ判定は #dpz（見た目より広い）が受け持つ */
+#dpz{position:absolute;touch-action:none;z-index:2}
+#dp{position:absolute;left:calc(env(safe-area-inset-left) + var(--pad));bottom:calc(env(safe-area-inset-bottom) + var(--pad));width:var(--dp);height:var(--dp);
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:calc(var(--u)*.04);box-sizing:border-box;padding:calc(var(--u)*.08);
+  border-radius:50%;background:radial-gradient(circle,#ffffff26,#ffffff0d 62%,#0000 74%);box-shadow:inset 0 0 0 2px #ffffff30;opacity:var(--op);pointer-events:none;z-index:1}
+#dp button{width:100%;height:100%;border-radius:calc(var(--u)*.2);border-width:2px;font-size:calc(var(--u)*.3);pointer-events:none;display:flex;align-items:center;justify-content:center}
+#dp button.on{background:#8fa0ff;box-shadow:0 0 calc(var(--u)*.25) #8fa0ff;transform:none}
+/* A / B / はしる：親指の弧に合わせて ずらして配置（Bは左うえ、Aは右した、はしるは左した） */
+#ab{position:absolute;right:calc(env(safe-area-inset-right) + var(--pad));bottom:calc(env(safe-area-inset-bottom) + var(--pad) + var(--u)*.3);
+  width:calc(var(--u) + var(--B) + var(--u)*.14);height:calc(var(--B) + var(--u)*.5);opacity:var(--op);z-index:2}
+#ab button{position:absolute;border-radius:50%;font-size:calc(var(--u)*.3)}
+#ab button::after{content:'';position:absolute;inset:calc(var(--hit)*-1);border-radius:50%}   /* 見た目より広い当たり判定 */
+#ab button[data-k=a]{right:0;bottom:0;width:var(--u);height:var(--u);background:#2a2f66}
+#ab button[data-k=b]{left:0;bottom:calc(var(--u)*.5);width:var(--B);height:var(--B)}
+#ab button.run{left:0;bottom:0;width:var(--B);height:calc(var(--u)*.38);border-radius:calc(var(--u)*.19);font-size:max(11px,calc(var(--u)*.17));border-width:2px;line-height:1;white-space:nowrap;overflow:visible}
+#ab button.run.on{background:#e0a030;color:#000;transform:none}
+#ctl.swap #dp{left:auto;right:calc(env(safe-area-inset-right) + var(--pad))}
+#ctl.swap #ab{right:auto;left:calc(env(safe-area-inset-left) + var(--pad))}
+/* 上のほうのボタン */
+.top{position:fixed;top:max(6px,env(safe-area-inset-top));width:36px;height:36px;border-width:2px;border-radius:50%;font-size:16px;opacity:.7;z-index:6}
+#mute{right:max(8px,env(safe-area-inset-right))}
+#cfgb{right:calc(max(8px,env(safe-area-inset-right)) + 44px)}
+/* 操作せってい */
+#cfgp,#diag{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;background:#000a}
+#cfgp.open,#diag.open{display:flex}
+#diag{z-index:10}
+#diag pre{margin:0 0 10px;font:13px/1.55 monospace;white-space:pre-wrap;word-break:break-all;color:#dfe6ff;font-family:'DotGothic16',monospace}
+#padb{position:fixed;display:none;align-items:center;justify-content:center;top:max(6px,env(safe-area-inset-top));right:calc(max(8px,env(safe-area-inset-right)) + 88px);width:36px;height:36px;box-sizing:border-box;border:2px solid #fff;border-radius:50%;background:#1a1f3a;font-size:16px;opacity:.75;z-index:6;pointer-events:none}
+#padb.act{background:#6a7cff;opacity:1}
+#padmsg{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:#000c;text-align:center;font-size:18px;line-height:1.7;padding:24px;box-sizing:border-box}
+#padmsg.open{display:flex}
+#cfgp .padmap{width:100%;min-height:44px;margin:0 0 6px;font-size:14px;border-width:2px;border-radius:10px}
+#cfgp .box,#diag .box{width:min(92vw,420px);max-height:92dvh;overflow:auto;background:#0b0f2a;border:3px solid #fff;border-radius:12px;padding:14px;box-sizing:border-box}
+#cfgp h2,#diag h2{margin:0 0 10px;font-size:18px;text-align:center;font-weight:normal}
+#cfgp .row{margin:0 0 10px}
+#cfgp .row>span{display:block;font-size:13px;margin:0 0 4px;color:#cfd6ff}
+#cfgp .opts{display:flex;gap:6px}
+#cfgp .opts button{flex:1;min-height:44px;font-size:15px;border-width:2px;border-radius:10px}
+#cfgp .opts button.sel{background:#6a7cff}
+#cfgp .close,#diag .close{width:100%;min-height:48px;font-size:17px;margin-top:4px}
+@media (orientation:landscape) and (max-height:520px){
+ #app{flex-direction:row;justify-content:center;align-items:center;padding-top:0}
+ canvas{height:100dvh;width:calc(100dvh*512/448);max-width:none}
+ #ctl{position:fixed;inset:0;width:auto;min-height:0;pointer-events:none;z-index:3;--pad:10px}
+ #ctl #dpz,#ctl #ab{pointer-events:auto}
+ #dp{bottom:calc(env(safe-area-inset-bottom) + 8px)}
+ #ab{bottom:calc(env(safe-area-inset-bottom) + 8px + var(--u)*.3)}
+}
+</style></head><body>
+<button id="mute" class="top" aria-label="BGM">🔊</button>
+<button id="cfgb" class="top" aria-label="操作せってい">⚙</button>
+<div id="cfgp"><div class="box"><h2>そうさ せってい</h2><div id="cfgrows"></div><button class="close" id="cfgx">とじる</button></div></div>
+<div id="padb" aria-hidden="true">🎮</div>
+<div id="padmsg"><div>🎮 コントローラーが きれたよ<br>つなぎなおして ボタンを おすか、<br>この がめんを タッチすると つづけられるよ</div></div>
+<div id="diag"><div class="box"><h2>コントローラー しんだん</h2><pre id="diagt"></pre><button class="close" id="diagx">とじる</button></div></div>
+<div id="app">
+<canvas id="c"></canvas>
+<div id="ctl">
+<div id="dp"><span></span><button data-k="u">▲</button><span></span><button data-k="l">◀</button><span></span><button data-k="r">▶</button><span></span><button data-k="d">▼</button><span></span></div>
+<div id="dpz"></div>
+<div id="ab"><button class="run" data-k="run">はしる</button><button class="b" data-k="b">B</button><button data-k="a">A</button></div>
+</div></div>
+<script>
+/*JS*/
+</script></body></html>

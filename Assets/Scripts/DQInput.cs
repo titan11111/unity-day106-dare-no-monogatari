@@ -45,11 +45,11 @@ namespace DareNoMonogatari
             d |= Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S);
             l |= Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A);
             r |= Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D);
-            // Nintendo系パッド(Hori等)はボタン順が標準と違うため、JS版core.jsのpollPadと同じ割り当てに合わせる: A(決定)=index1/3/9, B(キャンセル)=index0/2/8
+            // Nintendo系パッド(Hori等)はボタン順が標準と違うため、JS版core.jsのpollPadと同じ割り当てに合わせる: 決定=index0/2/8(B/Y/-), キャンセル・メニュー=index1/3/9(A/X/+) ※A/B入れ替え済み
             ok |= Input.GetKey(KeyCode.Z) || Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.Space)
-                || Input.GetKey(KeyCode.JoystickButton1) || Input.GetKey(KeyCode.JoystickButton3) || Input.GetKey(KeyCode.JoystickButton9);
-            ca |= Input.GetKey(KeyCode.X) || Input.GetKey(KeyCode.Escape) || Input.GetKey(KeyCode.Backspace)
                 || Input.GetKey(KeyCode.JoystickButton0) || Input.GetKey(KeyCode.JoystickButton2) || Input.GetKey(KeyCode.JoystickButton8);
+            ca |= Input.GetKey(KeyCode.X) || Input.GetKey(KeyCode.Escape) || Input.GetKey(KeyCode.Backspace)
+                || Input.GetKey(KeyCode.JoystickButton1) || Input.GetKey(KeyCode.JoystickButton3) || Input.GetKey(KeyCode.JoystickButton9);
             run |= Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)
                 || Input.GetKey(KeyCode.JoystickButton4) || Input.GetKey(KeyCode.JoystickButton5)
                 || Input.GetKey(KeyCode.JoystickButton6) || Input.GetKey(KeyCode.JoystickButton7);
