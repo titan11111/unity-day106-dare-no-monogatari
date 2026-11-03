@@ -263,7 +263,8 @@ function drawChar(g,x,y,key,dir=0,st=0){
   if(s.staff&&dir!==1){const hx=side?16.2:bx+bw+1.7,hy2=25.4+bob+(side?sw:-sw);
     g.strokeStyle='#6b4423';g.lineWidth=1.8;g.beginPath();g.moveTo(hx,7);g.lineTo(hx,30);g.stroke();
     g.strokeStyle=O;g.lineWidth=1.2;ell(g,hx,5.5,2.3,2.3,'#ffd23f',O);ell(g,hx,hy2,2,2,skin,O);}
-  if(s.sword&&dir!==2){rrect(g,25.2,10,2.2,13,.8,'#eef0f8',O);rrect(g,23.6,21,5.4,1.8,.6,'#ffd23f',O);rrect(g,25.4,22.6,1.8,3.2,.6,'#5a3a1a',O);}
+  if(s.sword&&dir!==2){const sx=dir===0?-20.6:0;   // 正面向きは画面の左＝キャラの右手に持つ（後ろ向きは画面の右＝右手）
+    rrect(g,25.2+sx,10,2.2,13,.8,'#eef0f8',O);rrect(g,23.6+sx,21,5.4,1.8,.6,'#ffd23f',O);rrect(g,25.4+sx,22.6,1.8,3.2,.6,'#5a3a1a',O);}
   // head
   if(dir===1){ell(g,16,hy,9.2,9.2,HG,O);}
   else{

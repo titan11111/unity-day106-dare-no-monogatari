@@ -49,8 +49,10 @@ async function inn(price){
   const i=await choose(['はい','いいえ'],{x:300,y:130,w:130});
   if(i!==0){await say('また おこしください。','やどや');return;}
   if(G.gold<price){await say('おや、おかねが たりないようですね……','やどや');return;}
-  G.gold-=price;await fade(1,500);G.pc.hp=G.pc.mhp;G.pc.mp=G.pc.mmp;sfx('heal');await sleep(500);await fade(0,500);
-  await say('ゆうべは おたのしみでしたね！\nまた どうぞ！','やどや');
+  G.gold-=price;await fade(1,500);G.pc.hp=G.pc.mhp;G.pc.mp=G.pc.mmp;sfx('heal');await sleep(500);
+  if(typeof phaseNow==='function'){G.clock=(dayCycle()+(phaseNow()===0?0:1))*PH_LEN*3;G.lastPh=0;G.banner={text:'あさに なった！',t:110};}   // 泊まったら朝にリセット
+  await fade(0,500);
+  await say(['ぐっすり ねむれましたか？\nまた おこしください！','おひさまが のぼりましたよ。\nきをつけて いってらっしゃい！','ゆっくり やすめて なによりです。\nまた どうぞ！'][rnd(3)],'やどや');
 }
 async function shop(stock){
   await say(GREET.shop[G.story]||'いらっしゃい！ なにを おさがしで？','みせ');

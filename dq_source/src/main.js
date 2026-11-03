@@ -69,7 +69,8 @@ async function onStep(){
   else if(m.kind==='cave'){zone=m.enc;rate=9;}
   if(rate&&++G.steps>5&&rnd(rate)===0){
     G.steps=0;G.busy=true;
-    const key=pickFoe(zone);
+    let key=pickFoe(zone);
+    if(m.kind==='world'&&phaseNow()===2&&rnd(9)===0)key='tsukiusagi';   // 夜はたまにレアモンスター
     const r=await battle(key);
     if(r==='lose')await onLose();
     G.busy=false;
