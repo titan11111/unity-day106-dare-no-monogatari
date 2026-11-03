@@ -141,6 +141,18 @@ function camera(){
   cy=m.h*T<=H?-(H-m.h*T)/2:Math.max(0,Math.min(m.h*T-H,cy));
   return [Math.round(cx),Math.round(cy),ox,oy];
 }
+// NPCの向き自動補正：店員(inn/shop)は隣のカウンターを向く、へいし(guard)は近くのプレイヤーの方を向く
+function autoFaceNpc(n,m){
+  if(n.spr==='inn'||n.spr==='shop'){
+    if(n._fz)return;n._fz=1;
+    for(let d=0;d<4;d++){const t=m.g[n.y+FACE[d][1]]&&m.g[n.y+FACE[d][1]][n.x+FACE[d][0]];if(t==='k'||t==='J'){n.dir=d;break;}}
+  }else if(n.spr==='guard'&&!n.mv){
+    const dx=G.px-n.x,dy=G.py-n.y;
+    if(Math.abs(dx)+Math.abs(dy)<=10)n.dir=Math.abs(dy)>=Math.abs(dx)?(dy>=0?0:1):(dx>0?3:2);
+    else if(n._gd===undefined)n.dir=0;
+    n._gd=1;
+  }
+}
 function drawMap(){
   const m=G.map,[cx,cy,ox,oy]=camera();
   ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
@@ -151,6 +163,7 @@ function drawMap(){
   if(typeof drawGround==='function')drawGround(m,cx,cy,x0,x1,y0,y1);
   const list=[];
   for(const n of npcsOn(m.id))list.push({y:n.y*T,f:()=>{
+    if(!n.mon)autoFaceNpc(n,m);
     if(n.mon){const b=Math.sin(G.tick/14+n.x)*2;DR[n.mon](n.x*T-cx+T/2,n.y*T-cy+T-2+b,n.mk);}
     else{let px=n.x*T,py=n.y*T,st=0;if(n.mv){const p=n.mv.t/n.mv.d;px=(n.mv.fx+(n.x-n.mv.fx)*p)*T;py=(n.mv.fy+(n.y-n.mv.fy)*p)*T;st=1+((G.tick>>2)&1);}
       drawChar(ctx,px-cx,py-cy,n.spr,n.dir,st);}}});
@@ -163,9 +176,10 @@ function drawMap(){
     if(f.k==='spark'){for(let j=0;j<12;j++){const a=j*.5236+f.t*.03,rr=6+p*30+(j%3)*4;ctx.globalAlpha=Math.max(0,1-p);ctx.fillStyle=j%2?'#fff3a0':'#ffd23f';ctx.fillRect(sx+Math.cos(a)*rr-1.5,sy-6+Math.sin(a)*rr*.7-p*14-1.5,3,3);}}
     else{for(let j=0;j<6;j++){ctx.globalAlpha=Math.max(0,.6-p*.6);ctx.fillStyle='#c8b8a0';ctx.beginPath();ctx.arc(sx+(j-2.5)*5,sy+12-p*14-(j%2)*3,3+p*3,0,7);ctx.fill();}}
     ctx.globalAlpha=1;if(f.t>=life)G.fx.splice(i,1);}
-  if(G.mode==='map'&&!UI.length&&!G.busy&&!G.mv){const lb=hintLabel();if(lb){const s='A  '+lb,w=tw(s,13)+20,bx=Math.max(4,Math.min(W-w-4,ox-cx+T/2-w/2));let by=oy-cy-28+Math.sin(G.tick/8)*1.5;if(by<78)by=oy-cy+T+4;
-    ctx.fillStyle='rgba(0,0,0,.88)';ctx.beginPath();ctx.roundRect(bx,by,w,20,6);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
-    text('A',bx+10,by+3,'#ffd23f',13);text(lb,bx+10+tw('A  ',13),by+3,'#fff',13);}}
+  if(G.mode==='map'&&!UI.length&&!G.busy&&!G.mv){const lb=hintLabel();if(lb){const s='A  '+lb,BH=26,w=tw(s,13)+20,bx=Math.max(4,Math.min(W-w-4,ox-cx+T/2-w/2));let by=oy-cy-32+Math.sin(G.tick/8)*1.5;if(by<78)by=oy-cy+T+4;
+    ctx.fillStyle='rgba(0,0,0,.88)';ctx.beginPath();ctx.roundRect(bx,by,w,BH,7);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+    // 文字は縦中央ぞろえ（端末ごとのフォント高さの差で下が見切れないように）
+    ctx.font='13px '+FONT;ctx.textBaseline='middle';ctx.fillStyle='#ffd23f';ctx.fillText('A',bx+10,by+BH/2+.5);ctx.fillStyle='#fff';ctx.fillText(lb,bx+10+tw('A  ',13),by+BH/2+.5);ctx.textBaseline='top';}}
   if(G.mode==='map'&&G.pc){
     ctx.globalAlpha=.92;box(8,8,236,64);ctx.globalAlpha=1;
     text(`HP ${G.pc.hp}/${G.pc.mhp}  MP ${G.pc.mp}/${G.pc.mmp}`,22,18,G.pc.hp<=G.pc.mhp/4?'#ff6':'#fff',15);
