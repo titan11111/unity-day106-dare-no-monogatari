@@ -37,17 +37,43 @@ const BG={0:['#101830','#000'],1:['#1a3a1a','#000'],2:['#2a1a3a','#000'],3:['#3a
 
 const MC=document.createElement('canvas');MC.width=330*S;MC.height=300*S;const mctx=MC.getContext('2d');
 const SC=document.createElement('canvas');SC.width=MC.width;SC.height=MC.height;const sctx=SC.getContext('2d');
+const EDC=document.createElement('canvas');EDC.width=MC.width;EDC.height=MC.height;const edctx=EDC.getContext('2d');
+const BIGK={slime:1.28,bat:1.18,ghost:1.2,wolf:1.0,skel:1.16,imp:1.12,tsukiusagi:1.22};
+// 縁取り光/影の三日月を作って重ねる（立体感）
+function edgeBand(dx,dy,col,alpha){
+  edctx.setTransform(1,0,0,1,0,0);edctx.globalCompositeOperation='source-over';edctx.clearRect(0,0,EDC.width,EDC.height);edctx.drawImage(MC,0,0);
+  edctx.globalCompositeOperation='destination-out';edctx.drawImage(MC,dx,dy);
+  edctx.globalCompositeOperation='source-in';edctx.fillStyle=col;edctx.fillRect(0,0,EDC.width,EDC.height);
+  mctx.save();mctx.setTransform(1,0,0,1,0,0);mctx.globalCompositeOperation='source-atop';mctx.globalAlpha=alpha;mctx.drawImage(EDC,0,0);mctx.restore();
+}
 function drawMonster(key,k,bob){
+  k*=BIGK[key]||1;
   const real=ctx;ctx=mctx;mctx.setTransform(S,0,0,S,0,0);mctx.clearRect(0,0,330,300);
   try{DR[key](165,262+bob,k);}finally{ctx=real;}
+  // --- 3D lighting pass ---
   mctx.save();mctx.setTransform(1,0,0,1,0,0);mctx.globalCompositeOperation='source-atop';
-  const g=mctx.createLinearGradient(0,0,MC.width*.7,MC.height);g.addColorStop(0,'rgba(255,255,255,.30)');g.addColorStop(.45,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(10,0,40,.42)');
-  mctx.fillStyle=g;mctx.fillRect(0,0,MC.width,MC.height);mctx.restore();
+  const W2=MC.width,H2=MC.height;
+  // 形に沿った陰影：左上がハイライト、右下へ向かって暗く
+  const rg=mctx.createRadialGradient(W2*.38,H2*.34,W2*.04,W2*.5,H2*.55,W2*.62);
+  rg.addColorStop(0,'rgba(255,255,255,.22)');rg.addColorStop(.45,'rgba(255,255,255,0)');rg.addColorStop(1,'rgba(6,0,30,.55)');
+  mctx.fillStyle=rg;mctx.fillRect(0,0,W2,H2);
+  // 足もとの落ち影（接地感）
+  const ag=mctx.createLinearGradient(0,H2*.78,0,H2);ag.addColorStop(0,'rgba(0,0,0,0)');ag.addColorStop(1,'rgba(0,0,20,.35)');
+  mctx.fillStyle=ag;mctx.fillRect(0,0,W2,H2);
+  mctx.restore();
+  edgeBand(3.2*S,3.2*S,'#ffffff',.55);      // 左上のリムライト
+  edgeBand(-3.2*S,-3.2*S,'#06001e',.5);      // 右下のかげ
+  edgeBand(1.4*S,1.4*S,'#fff6d0',.45);       // 細いハイライトライン
   sctx.setTransform(1,0,0,1,0,0);sctx.globalCompositeOperation='source-over';sctx.clearRect(0,0,SC.width,SC.height);sctx.drawImage(MC,0,0);
   sctx.globalCompositeOperation='source-in';sctx.fillStyle='#0a0612';sctx.fillRect(0,0,SC.width,SC.height);
-  if(AURA[key]){const gl=ctx.createRadialGradient(339,190,10,339,190,150);gl.addColorStop(0,`rgba(${AURA[key]},.38)`);gl.addColorStop(1,`rgba(${AURA[key]},0)`);ctx.fillStyle=gl;ctx.fillRect(186,20,306,280);}
   const ox=174,oy=20;
-  for(let i=0;i<8;i++){const a=i*Math.PI/4;ctx.drawImage(SC,ox+Math.cos(a)*1.6,oy+Math.sin(a)*1.6,330,300);}
+  // 地面にのびる接地影＋ぼんやり光
+  {const w=Math.min(150,70+k*54),sh=ctx.createRadialGradient(339,284,4,339,284,w);sh.addColorStop(0,'rgba(0,0,0,.65)');sh.addColorStop(1,'rgba(0,0,0,0)');
+   ctx.save();ctx.translate(0,284);ctx.scale(1,.18);ctx.translate(0,-284);ctx.fillStyle=sh;ctx.fillRect(339-w,284-w,w*2,w*2);ctx.restore();}
+  if(AURA[key]){const gl=ctx.createRadialGradient(339,190,10,339,190,150);gl.addColorStop(0,`rgba(${AURA[key]},.38)`);gl.addColorStop(1,`rgba(${AURA[key]},0)`);ctx.fillStyle=gl;ctx.fillRect(186,20,306,280);}
+  // 黒いふちどり＋奥行きのドロップシャドウ
+  ctx.save();ctx.globalAlpha*=.4;ctx.drawImage(SC,ox+7,oy+6,330,300);ctx.restore();
+  for(let i=0;i<8;i++){const a=i*Math.PI/4;ctx.drawImage(SC,ox+Math.cos(a)*1.8,oy+Math.sin(a)*1.8,330,300);}
   ctx.drawImage(MC,ox,oy,330,300);
 }
 const SZ={slimeKing:1.15,boneBoss:.9,dragon:.9,demonKing:.82,golem:.9,knight:.9,drake:.9};
