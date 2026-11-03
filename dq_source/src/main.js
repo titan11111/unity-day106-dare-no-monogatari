@@ -145,8 +145,10 @@ function camera(){
 // NPCの向き自動補正：店員(inn/shop)は隣のカウンターを向く、へいし(guard)は近くのプレイヤーの方を向く
 function autoFaceNpc(n,m){
   if(n.spr==='inn'||n.spr==='shop'){
-    if(n._fz)return;n._fz=1;
-    for(let d=0;d<4;d++){const t=m.g[n.y+FACE[d][1]]&&m.g[n.y+FACE[d][1]][n.x+FACE[d][0]];if(t==='k'||t==='J'){n.dir=d;break;}}
+    // カウンター('k')を最優先、なければ棚/柵('K','J')の方向を毎フレーム向く(会話後に戻らない)
+    if(n._fd===undefined){n._fd=-1;
+      for(const set of['k','KJ']){for(let d=0;d<4&&n._fd<0;d++){const t=m.g[n.y+FACE[d][1]]&&m.g[n.y+FACE[d][1]][n.x+FACE[d][0]];if(t&&set.includes(t))n._fd=d;}if(n._fd>=0)break;}}
+    if(n._fd>=0)n.dir=n._fd;
   }else if(n.spr==='guard'&&!n.mv){
     const dx=G.px-n.x,dy=G.py-n.y;
     if(Math.abs(dx)+Math.abs(dy)<=10)n.dir=Math.abs(dy)>=Math.abs(dx)?(dy>=0?0:1):(dx>0?3:2);
