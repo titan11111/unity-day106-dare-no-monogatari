@@ -47,6 +47,7 @@ function edgeBand(dx,dy,col,alpha){
   mctx.save();mctx.setTransform(1,0,0,1,0,0);mctx.globalCompositeOperation='source-atop';mctx.globalAlpha=alpha;mctx.drawImage(EDC,0,0);mctx.restore();
 }
 function drawMonster(key,k,bob){
+  if(typeof MonsterArt!=='undefined'&&MonsterArt.draw(ctx,key,G.tick,foe))return;
   k*=BIGK[key]||1;
   const real=ctx;ctx=mctx;mctx.setTransform(S,0,0,S,0,0);mctx.clearRect(0,0,330,300);
   try{DR[key](165,262+bob,k);}finally{ctx=real;}
@@ -93,8 +94,8 @@ function drawBattle(){
   statBox(12,10,G.pc,150);
   VFX.draw('pc');
 }
-async function pcDamage(n){sfx('hit');G.shake=12;G.pc.hp=Math.max(0,G.pc.hp-n);await sleep(260);}
-async function foeBlink(){for(let i=0;i<6;i++){foe.vis=!foe.vis;await sleep(55);}foe.vis=true;}
+async function pcDamage(n){if(foe)foe.attackAt=performance.now();sfx('hit');G.shake=12;G.pc.hp=Math.max(0,G.pc.hp-n);await sleep(420);}
+async function foeBlink(){if(foe)foe.hitAt=performance.now();await sleep(340);}
 function dmgOf(atk,def,var_=4){return Math.max(1,Math.floor(atk-def/2+rnd(Math.max(2,atk/var_))));}
 
 async function useSpell(pc,sp,inBattle){
