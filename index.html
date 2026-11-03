@@ -1290,7 +1290,7 @@ async function onLose(){
   G.gold=Math.floor(G.gold/2);G.pc.hp=G.pc.mhp;G.pc.mp=G.pc.mmp;
   await warpTo(G.home,MAPS[G.home].start.x,MAPS[G.home].start.y,false);
   await fade(0,500);
-  await say(`${G.pc.name}よ、ちからつきて しまうとは なさけない！\nおかねは はんぶんに なってしまった……。`);
+  await say('……はっと めを さました。\nだれかが ここまで はこんで くれたらしい。\nふところの おかねが はんぶんに へっている……。');
   G.busy=false;
 }
 async function selectStory(afterEnd){
