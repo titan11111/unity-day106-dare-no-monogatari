@@ -218,6 +218,7 @@ function draw(){
   ctx.restore();
 }
 function frame(){
+  if(passwordOpen){requestAnimationFrame(frame);return;}
   if(G.paused){pollPad();requestAnimationFrame(frame);return;}
   G.tick++;pollPad();
   uiUpdate();if(pressed.a)G.apress=(G.apress||0)+1;

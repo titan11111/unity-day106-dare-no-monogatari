@@ -4,9 +4,10 @@ const W=512,H=448,T=32,VW=16,VH=14,S=3;
 const cv=document.getElementById('c');let ctx=cv.getContext('2d');
 cv.width=W*S;cv.height=H*S;
 const FONT='"DotGothic16","Hiragino Kaku Gothic ProN","MS Gothic",monospace';
+let passwordOpen=false;
 const keys={},pressed={},RUN={t:false,h:false};
 const KM={ArrowUp:'u',ArrowDown:'d',ArrowLeft:'l',ArrowRight:'r',w:'u',s:'d',a:'l',d:'r',Enter:'a',z:'a',' ':'a',x:'b',Escape:'b',Backspace:'b'};
-addEventListener('keydown',e=>{if(e.key==='Shift'){RUN.h=true;return;}const m=KM[e.key];if(!m)return;e.preventDefault();if(!keys[m])pressed[m]=true;keys[m]=true;});
+addEventListener('keydown',e=>{if(passwordOpen)return;if(e.key==='Shift'){RUN.h=true;return;}const m=KM[e.key];if(!m)return;e.preventDefault();if(!keys[m])pressed[m]=true;keys[m]=true;});
 addEventListener('keyup',e=>{if(e.key==='Shift'){RUN.h=false;return;}const m=KM[e.key];if(m)keys[m]=false;});
 const vib=ms=>{try{if(window.UICFG&&UICFG.vib===false)return;navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
 // --- Gamepad (Switch Pro / Joy-Con / any standard pad). Nintendo layout(入れ替え済み): B=bottom(0)=決定, A=right(1)=キャンセル ---
@@ -51,14 +52,14 @@ function pollPad(){
 }
 addEventListener('gamepadconnected',e=>{try{window.onPad&&window.onPad(e.gamepad&&e.gamepad.id);padResume();}catch(_){}});
 addEventListener('gamepaddisconnected',()=>{try{if(readPads().some(g=>g&&g.connected))return;if(G.mode==='map'||G.mode==='battle'||G.mode==='select')padLost();}catch(_){}});
-addEventListener('keydown',e=>{if(G.paused){padResume();return;}if(e.key==='p'||e.key==='P'){window.padDiag&&padDiag();}});
+addEventListener('keydown',e=>{if(passwordOpen)return;if(G.paused){padResume();return;}if(e.key==='p'||e.key==='P'){window.padDiag&&padDiag();}});
 document.addEventListener('pointerdown',()=>{if((typeof G!=="undefined"&&G.paused))padResume();},true);
 // --- touch hardening: no double-tap zoom, no pinch, no scroll / pull-to-refresh, no long-press menu ---
 (()=>{let last=0;
-  document.addEventListener('touchend',e=>{const n=Date.now();if(n-last<400)e.preventDefault();last=n;},{passive:false});
+  document.addEventListener('touchend',e=>{if(e.target.closest('#password-panel'))return;const n=Date.now();if(n-last<400)e.preventDefault();last=n;},{passive:false});
   document.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
-  document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
-  for(const ev of['gesturestart','gesturechange','gestureend','dblclick','contextmenu','selectstart','dragstart'])document.addEventListener(ev,e=>e.preventDefault());
+  document.addEventListener('touchmove',e=>{if(!e.target.closest('#password-panel'))e.preventDefault();},{passive:false});
+  for(const ev of['gesturestart','gesturechange','gestureend','dblclick','contextmenu','selectstart','dragstart'])document.addEventListener(ev,e=>{if(!e.target.closest('#password-panel'))e.preventDefault();});
 })();
 // ===== 操作UI：十字キー(広い判定) / A・B(広い当たり判定) / 画面に合わせた自動最大サイズ / 設定(⚙) =====
 var UICFG=Object.assign({size:2,swap:false,wide:true,op:.82,vib:true},(()=>{try{return JSON.parse(localStorage.getItem('dq_ui')||'{}')||{};}catch(e){return{};}})());

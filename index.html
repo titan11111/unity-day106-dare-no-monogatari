@@ -64,6 +64,15 @@ button.on,.pad.on{background:#6a7cff;transform:scale(.94)}
  #dp{bottom:calc(env(safe-area-inset-bottom) + 8px)}
  #ab{bottom:calc(env(safe-area-inset-bottom) + 8px + var(--u)*.3)}
 }
+/* 復帰パスワード：スマホの選択・コピー・貼り付けを許可 */
+#password-panel{position:fixed;inset:0;z-index:30;background:#000c;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;touch-action:auto}
+#password-panel[hidden]{display:none}
+#password-panel form{width:min(100%,480px);max-height:calc(100dvh - 24px);overflow:auto;background:#0b0f2a;border:3px solid #fff;border-radius:12px;padding:18px;box-sizing:border-box;touch-action:auto}
+#password-panel h2{font-size:22px;margin:0 0 12px;color:#ffd23f}
+#password-panel p{font-size:15px;line-height:1.6}
+#password-code{display:block;width:100%;height:130px;box-sizing:border-box;font:16px/1.5 monospace;background:#fff;color:#111;padding:10px;border:2px solid #8fa0ff;border-radius:6px;resize:vertical;user-select:text;-webkit-user-select:text;-webkit-touch-callout:default;touch-action:auto;overflow-wrap:anywhere}
+#password-panel button{font-size:17px;min-height:46px;padding:8px 14px;margin:8px 8px 0 0;border-width:2px;touch-action:manipulation}
+#password-status{min-height:24px;color:#ffd23f}
 </style></head><body>
 <button id="mute" class="top" aria-label="BGM">🔊</button>
 <button id="cfgb" class="top" aria-label="操作せってい">⚙</button>
@@ -71,6 +80,14 @@ button.on,.pad.on{background:#6a7cff;transform:scale(.94)}
 <div id="padb" aria-hidden="true">🎮</div>
 <div id="padmsg"><div>🎮 コントローラーが きれたよ<br>つなぎなおして ボタンを おすか、<br>この がめんを タッチすると つづけられるよ</div></div>
 <div id="diag"><div class="box"><h2>コントローラー しんだん</h2><pre id="diagt"></pre><button class="close" id="diagx">とじる</button></div></div>
+<div id="password-panel" hidden role="dialog" aria-modal="true" aria-labelledby="password-title">
+<form id="password-form">
+<h2 id="password-title"></h2><p id="password-help"></p>
+<label for="password-code">復帰用パスワード</label>
+<textarea id="password-code" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="password-help password-status" maxlength="65536"></textarea>
+<p id="password-status" role="status" aria-live="polite"></p>
+<button type="submit" id="password-ok"></button><button type="button" id="password-close"></button>
+</form></div>
 <div id="app">
 <canvas id="c"></canvas>
 <div id="ctl">
@@ -85,9 +102,10 @@ const W=512,H=448,T=32,VW=16,VH=14,S=3;
 const cv=document.getElementById('c');let ctx=cv.getContext('2d');
 cv.width=W*S;cv.height=H*S;
 const FONT='"DotGothic16","Hiragino Kaku Gothic ProN","MS Gothic",monospace';
+let passwordOpen=false;
 const keys={},pressed={},RUN={t:false,h:false};
 const KM={ArrowUp:'u',ArrowDown:'d',ArrowLeft:'l',ArrowRight:'r',w:'u',s:'d',a:'l',d:'r',Enter:'a',z:'a',' ':'a',x:'b',Escape:'b',Backspace:'b'};
-addEventListener('keydown',e=>{if(e.key==='Shift'){RUN.h=true;return;}const m=KM[e.key];if(!m)return;e.preventDefault();if(!keys[m])pressed[m]=true;keys[m]=true;});
+addEventListener('keydown',e=>{if(passwordOpen)return;if(e.key==='Shift'){RUN.h=true;return;}const m=KM[e.key];if(!m)return;e.preventDefault();if(!keys[m])pressed[m]=true;keys[m]=true;});
 addEventListener('keyup',e=>{if(e.key==='Shift'){RUN.h=false;return;}const m=KM[e.key];if(m)keys[m]=false;});
 const vib=ms=>{try{if(window.UICFG&&UICFG.vib===false)return;navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
 // --- Gamepad (Switch Pro / Joy-Con / any standard pad). Nintendo layout(入れ替え済み): B=bottom(0)=決定, A=right(1)=キャンセル ---
@@ -132,14 +150,14 @@ function pollPad(){
 }
 addEventListener('gamepadconnected',e=>{try{window.onPad&&window.onPad(e.gamepad&&e.gamepad.id);padResume();}catch(_){}});
 addEventListener('gamepaddisconnected',()=>{try{if(readPads().some(g=>g&&g.connected))return;if(G.mode==='map'||G.mode==='battle'||G.mode==='select')padLost();}catch(_){}});
-addEventListener('keydown',e=>{if(G.paused){padResume();return;}if(e.key==='p'||e.key==='P'){window.padDiag&&padDiag();}});
+addEventListener('keydown',e=>{if(passwordOpen)return;if(G.paused){padResume();return;}if(e.key==='p'||e.key==='P'){window.padDiag&&padDiag();}});
 document.addEventListener('pointerdown',()=>{if((typeof G!=="undefined"&&G.paused))padResume();},true);
 // --- touch hardening: no double-tap zoom, no pinch, no scroll / pull-to-refresh, no long-press menu ---
 (()=>{let last=0;
-  document.addEventListener('touchend',e=>{const n=Date.now();if(n-last<400)e.preventDefault();last=n;},{passive:false});
+  document.addEventListener('touchend',e=>{if(e.target.closest('#password-panel'))return;const n=Date.now();if(n-last<400)e.preventDefault();last=n;},{passive:false});
   document.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
-  document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
-  for(const ev of['gesturestart','gesturechange','gestureend','dblclick','contextmenu','selectstart','dragstart'])document.addEventListener(ev,e=>e.preventDefault());
+  document.addEventListener('touchmove',e=>{if(!e.target.closest('#password-panel'))e.preventDefault();},{passive:false});
+  for(const ev of['gesturestart','gesturechange','gestureend','dblclick','contextmenu','selectstart','dragstart'])document.addEventListener(ev,e=>{if(!e.target.closest('#password-panel'))e.preventDefault();});
 })();
 // ===== 操作UI：十字キー(広い判定) / A・B(広い当たり判定) / 画面に合わせた自動最大サイズ / 設定(⚙) =====
 var UICFG=Object.assign({size:2,swap:false,wide:true,op:.82,vib:true},(()=>{try{return JSON.parse(localStorage.getItem('dq_ui')||'{}')||{};}catch(e){return{};}})());
@@ -2260,7 +2278,7 @@ const SAVE_KEY=i=>'dq_save_'+i;
 function storeGet(k){try{const v=localStorage.getItem(k);if(v!==null)return v;}catch(e){}return MEMSAVE[k]||null;}
 function storeSet(k,v){MEMSAVE[k]=v;try{localStorage.setItem(k,v);}catch(e){}}
 function snapshot(){
-  return {ver:1,t:Date.now(),story:G.story,f:G.f,open:G.open,pc:G.pc,gold:G.gold,home:G.home,map:G.map.id,x:G.px,y:G.py,dir:G.dir};
+  return {ver:1,t:Date.now(),story:G.story,f:G.f,open:G.open,pc:G.pc,gold:G.gold,home:G.home,map:G.map.id,x:G.px,y:G.py,dir:G.dir,cleared:clearedList()};
 }
 function writeSlot(i){try{storeSet(SAVE_KEY(i),JSON.stringify(snapshot()));return true;}catch(e){return false;}}
 function autoSave(){if(G.mode==='map'&&G.pc&&G.map&&G.map.kind!=='cave')writeSlot(0);}
@@ -2275,24 +2293,77 @@ function slotLabel(i){
   return `${nm}　${CHARS[d.story].label} LV${d.pc.lv}　${d.map==='world'?worldName(d.x,d.y):MAPS[d.map].name}`;
 }
 function applySave(d){
+  if(Array.isArray(d.cleared))for(const id of d.cleared)if(Object.hasOwn(CHARS,id))markCleared(id);
   G.story=d.story;G.f=d.f||{};G.open=d.open||{};G.pc=d.pc;G.gold=d.gold;G.home=d.home||'v1';G.fx=[];
   G.pc.spells=CHARS[d.story].spells;G.pc.gr=GR;
   G.map=MAPS[d.map];G.px=d.x;G.py=d.y;G.dir=d.dir||0;G.mv=null;G.steps=0;G.card=null;
   refreshMap();G.wname=G.map.id==='world'?worldName(d.x,d.y):null;G.banner={text:G.map.id==='world'?worldName(d.x,d.y):G.map.name,t:110};
 }
+// The code contains the save itself, so it works without this browser's storage.
+// FNV-1a detects copying errors; this is a recovery code, not an account secret.
+function passwordChecksum(s){let h=2166136261;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return (h>>>0).toString(16).padStart(8,'0');}
+function encodePassword(d){
+  const pc={...d.pc};delete pc.spells;delete pc.gr;
+  const bytes=new TextEncoder().encode(JSON.stringify({...d,pc}));
+  const payload=btoa(Array.from(bytes,b=>String.fromCharCode(b)).join('')).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  return 'DQ106.'+payload+'.'+passwordChecksum(payload);
+}
+function validatePasswordSave(d){
+  const obj=o=>o&&typeof o==='object'&&!Array.isArray(o);
+  const num=n=>Number.isFinite(n)&&n>=0&&n<=1000000000;
+  const safe=o=>!obj(o)&&!Array.isArray(o)||Object.keys(o).every(k=>!['__proto__','prototype','constructor'].includes(k)&&safe(o[k]));
+  if(!obj(d)||!safe(d)||d.ver!==1||!Object.hasOwn(MAPS,d.map)||!Object.hasOwn(CHARS,d.story)||!obj(d.pc))throw Error('data');
+  const m=MAPS[d.map],p=d.pc;
+  if(!Number.isInteger(d.x)||!Number.isInteger(d.y)||d.x<0||d.y<0||d.x>=m.w||d.y>=m.h||!num(d.gold))throw Error('position');
+  for(const k of ['lv','exp','mhp','hp','mmp','mp','atk','def','wp','ar'])if(!num(p[k]))throw Error('stats');
+  if(p.lv<1||p.mhp<1||p.hp>p.mhp||p.mp>p.mmp||p.id!==d.story||!obj(p.items)||!Object.values(p.items).every(num))throw Error('player');
+  for(const k of ['name','wpn','arn'])if(typeof p[k]!=='string'||p[k].length>100)throw Error('text');
+  if(!obj(d.f)||!obj(d.open)||!Object.hasOwn(MAPS,d.home)||!Number.isInteger(d.dir)||d.dir<0||d.dir>3)throw Error('state');
+  if(d.cleared!==undefined&&(!Array.isArray(d.cleared)||!d.cleared.every(id=>Object.hasOwn(CHARS,id))))throw Error('clear');
+  return d;
+}
+function decodePassword(code){
+  code=code.normalize('NFKC').replace(/\s/g,'');
+  if(code.length>65536)throw Error('length');
+  const m=/^DQ106\.([A-Za-z0-9_-]+)\.([0-9a-f]{8})$/.exec(code);
+  if(!m||passwordChecksum(m[1])!==m[2])throw Error('checksum');
+  const b64=m[1].replace(/-/g,'+').replace(/_/g,'/');
+  const bytes=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+  return validatePasswordSave(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)));
+}
+function passwordDialog(code){
+  return new Promise(resolve=>{
+    const panel=document.getElementById('password-panel'),form=document.getElementById('password-form'),field=document.getElementById('password-code');
+    const status=document.getElementById('password-status'),ok=document.getElementById('password-ok'),close=document.getElementById('password-close');
+    const exporting=typeof code==='string',previous=document.activeElement;
+    passwordOpen=true;for(const k in keys)keys[k]=false;clearKeys();RUN.h=RUN.t=RUN.p=false;
+    document.getElementById('password-title').textContent=exporting?'ぼうけんを きろくした！':'パスワードで つづきから';
+    document.getElementById('password-help').textContent=exporting?'この長いパスワードを全部コピーして、メモなどに保存してね。別の端末でも、この時点から再開できるよ。':'セーブしたときのパスワードを全部貼り付けてね。途中の改行や空白はそのままで大丈夫。';
+    field.value=exporting?code:'';field.readOnly=exporting;status.textContent='';ok.textContent=exporting?'コピーする':'つづきから はじめる';close.textContent=exporting?'とじる':'やめる';
+    const finish=value=>{panel.hidden=true;passwordOpen=false;form.onsubmit=null;close.onclick=null;panel.onkeydown=null;for(const k in keys)keys[k]=false;clearKeys();if(previous&&previous.focus)previous.focus();resolve(value);};
+    close.onclick=()=>finish(null);
+    panel.onkeydown=e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();finish(null);}else if(e.key==='Tab'){const list=[field,ok,close],i=list.indexOf(document.activeElement);if(e.shiftKey&&i===0){e.preventDefault();close.focus();}else if(!e.shiftKey&&i===2){e.preventDefault();field.focus();}}};
+    form.onsubmit=async e=>{e.preventDefault();if(exporting){field.focus();field.select();try{await navigator.clipboard.writeText(code);status.textContent='コピーしたよ。メモなどに貼り付けて保存してね。';}catch(_){status.textContent='長押しして「コピー」を選んでね（PCは Ctrl/Cmd+C）。';}}else{try{const d=decodePassword(field.value);finish(d);}catch(_){status.textContent='パスワードが正しくないよ。最初から最後までコピーしてね。';field.focus();}}};
+    panel.hidden=false;field.focus();if(exporting)field.select();
+  });
+}
+async function resumePassword(){
+  const d=await passwordDialog();if(!d)return false;
+  await fade(1,250);applySave(d);G.mode='map';writeSlot(0);await fade(0,250);
+  await say('パスワードから ぼうけんを さいかいした！');return true;
+}
 async function saveMenu(){
   const i=await choose([1,2,3].map(slotLabel).concat(['やめる']),{x:20,y:60,w:470,title:'どこに セーブする？',cancel:1});
   if(i<0||i>2)return;
-  if(G.map.kind==='cave'||G.map.kind==='world'){/* allowed everywhere; kept simple */}
   if(readSlot(i+1)){const c=await choose(['うわがきする','やめる'],{x:300,y:130,w:170,cancel:1});if(c!==0)return;}
-  sfx('buy');
-  await say(writeSlot(i+1)?'ぼうけんの しょを きろくした！':'セーブに しっぱいした……。');
+  const d=snapshot();
+  try{const code=encodePassword(d);storeSet(SAVE_KEY(i+1),JSON.stringify(d));sfx('buy');await passwordDialog(code);}
+  catch(_){await say('セーブに しっぱいした……。');}
 }
 async function loadMenu(fromTitle){
-  const have=[0,1,2,3].filter(i=>readSlot(i));
-  if(!have.length){await say('セーブデータが ない。');return false;}
   const dis=[0,1,2,3].map(i=>!readSlot(i));
-  const i=await choose([0,1,2,3].map(slotLabel).concat(['やめる']),{x:20,y:50,w:470,title:'どれを ロードする？',cancel:1,dis:dis.concat([false])});
+  const i=await choose([0,1,2,3].map(slotLabel).concat(['パスワードで さいかい','やめる']),{x:20,y:50,w:470,title:'どれを ロードする？',cancel:1,dis:dis.concat([false,false])});
+  if(i===4)return resumePassword();
   if(i<0||i>3)return false;
   const d=readSlot(i);if(!d)return false;
   await fade(1,250);applySave(d);G.mode='map';
@@ -2301,12 +2372,13 @@ async function loadMenu(fromTitle){
   return true;
 }
 async function titleFlow(){
-  if([0,1,2,3].some(i=>readSlot(i))){
-    const i=await choose(['はじめから','つづきから'],{x:170,y:230,w:170,cancel:0});
-    if(i===1){if(await loadMenu(true))return;}
+  while(true){
+    const i=await choose(['はじめから','つづきから','パスワードで さいかい'],{x:95,y:260,w:330,cancel:0,dis:[false,![0,1,2,3].some(i=>readSlot(i)),false]});
     if(i<0)return;
+    if(i===0){await selectStory(false);return;}
+    if(i===1&&await loadMenu(true))return;
+    if(i===2&&await resumePassword())return;
   }
-  await selectStory(false);
 }
 
 'use strict';
@@ -2992,6 +3064,7 @@ function draw(){
   ctx.restore();
 }
 function frame(){
+  if(passwordOpen){requestAnimationFrame(frame);return;}
   if(G.paused){pollPad();requestAnimationFrame(frame);return;}
   G.tick++;pollPad();
   uiUpdate();if(pressed.a)G.apress=(G.apress||0)+1;
