@@ -10,14 +10,14 @@ const KM={ArrowUp:'u',ArrowDown:'d',ArrowLeft:'l',ArrowRight:'r',w:'u',s:'d',a:'
 addEventListener('keydown',e=>{if(passwordOpen)return;if(e.key==='Shift'){RUN.h=true;return;}const m=KM[e.key];if(!m)return;e.preventDefault();if(!keys[m])pressed[m]=true;keys[m]=true;});
 addEventListener('keyup',e=>{if(e.key==='Shift'){RUN.h=false;return;}const m=KM[e.key];if(m)keys[m]=false;});
 const vib=ms=>{try{if(window.UICFG&&UICFG.vib===false)return;navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
-// --- Gamepad (Switch Pro / Joy-Con / any standard pad). Nintendo layout(入れ替え済み): B=bottom(0)=決定, A=right(1)=キャンセル ---
+// --- Gamepad (Switch Pro / Joy-Con / any standard pad). A/B functions swapped: bottom(0)=menu, right(1)=confirm ---
 const PAD={u:0,d:0,l:0,r:0,a:0,b:0,run:0};let padOn=false;
 const PADINFO={ok:true,err:'',id:'',mapping:'',btn:[],axes:[],show:false};
 function readPads(){ // iframe等でGamepad APIが禁止されていても例外でゲームが止まらないようにする
   try{const gps=navigator.getGamepads?navigator.getGamepads():[];PADINFO.ok=!!navigator.getGamepads;return gps||[];}
   catch(e){PADINFO.ok=false;PADINFO.err=String(e&&e.name||e);return [];}
 }
-const PMAP_DEF={a:[0,2,8],b:[1,3,9],run:[4,5,6,7]};
+const PMAP_DEF={a:[1,3,9],b:[0,2,8],run:[4,5,6,7]};
 let PCAP=null;
 function pmap(k){const m=window.UICFG&&UICFG.pmap&&UICFG.pmap[k];return Array.isArray(m)&&m.length?m:PMAP_DEF[k];}
 function padUI(any,n){const b=document.getElementById('padb');if(!b)return;
@@ -34,7 +34,7 @@ function pollPad(){
     // 非standardマッピング(Joy-Con/一部のProコン)は十字キーが axes[9] のハット値で来る
     if(g.axes.length>9&&!(n.u||n.d||n.l||n.r)){const h=g.axes[9];
       if(h<=1.05){const d=Math.round((h+1)*3.5)%8;if([7,0,1].includes(d))n.u=1;if([1,2,3].includes(d))n.r=1;if([3,4,5].includes(d))n.d=1;if([5,6,7].includes(d))n.l=1;}}
-    // ボタン割り当て(⚙で変更可)。初期値: 決定=B/Y/−(0,2,8) メニュー=A/X/+(1,3,9) はしる=L/R/ZL/ZR(4-7)
+    // ボタン割り当て(⚙で変更可)。初期値: 決定=right/top/+(1,3,9) メニュー=bottom/left/−(0,2,8) はしる=L/R/ZL/ZR(4-7)
     const hit=ks=>ks.some(i=>B(i));
     if(hit(pmap('a')))n.a=1;if(hit(pmap('b')))n.b=1;if(hit(pmap('run')))n.run=1;
     const pv=PADINFO.prev||(PADINFO.prev=[]);
@@ -63,6 +63,8 @@ document.addEventListener('pointerdown',()=>{if((typeof G!=="undefined"&&G.pause
 })();
 // ===== 操作UI：十字キー(広い判定) / A・B(広い当たり判定) / 画面に合わせた自動最大サイズ / 設定(⚙) =====
 var UICFG=Object.assign({size:2,swap:false,wide:true,op:.82,vib:true},(()=>{try{return JSON.parse(localStorage.getItem('dq_ui')||'{}')||{};}catch(e){return{};}})());
+// Apply the requested A/B reversal once to existing custom gamepad bindings, too.
+if(!UICFG.abSwap20261107){if(UICFG.pmap){const old=UICFG.pmap;UICFG.pmap={...old,a:old.b||[1,3,9],b:old.a||[0,2,8]};}UICFG.abSwap20261107=true;try{localStorage.setItem('dq_ui',JSON.stringify(UICFG));}catch(e){}}
 (()=>{
   const $=id=>document.getElementById(id);
   const ctl=$('ctl'),dp=$('dp'),ab=$('ab'),dpz=$('dpz');

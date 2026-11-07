@@ -248,7 +248,7 @@ async function startStory(id){
   await warpTo(c.map,c.x,c.y,false);G.dir=0;
   G.mode='map';G.card=null;await fade(0,500);autoSave();
   for(const s of c.intro)await say(s,id==='hero'?'':c.name);
-  if(id==='hero'){await say('(とびらは ほうこうキーで すすむと じどうで ひらく。たからばこや ひとへは Aボタン。まずは いえの とびらを あけて むらへ でよう)');}
+  if(id==='hero'){await say('(とびらは ほうこうキーで すすむと じどうで ひらく。たからばこや ひとへは Bボタン。まずは いえの とびらを あけて むらへ でよう)');}
 }
 async function finishStory(){
   G.busy=true;

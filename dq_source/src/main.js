@@ -179,10 +179,10 @@ function drawMap(){
     if(f.k==='spark'){for(let j=0;j<12;j++){const a=j*.5236+f.t*.03,rr=6+p*30+(j%3)*4;ctx.globalAlpha=Math.max(0,1-p);ctx.fillStyle=j%2?'#fff3a0':'#ffd23f';ctx.fillRect(sx+Math.cos(a)*rr-1.5,sy-6+Math.sin(a)*rr*.7-p*14-1.5,3,3);}}
     else{for(let j=0;j<6;j++){ctx.globalAlpha=Math.max(0,.6-p*.6);ctx.fillStyle='#c8b8a0';ctx.beginPath();ctx.arc(sx+(j-2.5)*5,sy+12-p*14-(j%2)*3,3+p*3,0,7);ctx.fill();}}
     ctx.globalAlpha=1;if(f.t>=life)G.fx.splice(i,1);}
-  if(G.mode==='map'&&!UI.length&&!G.busy&&!G.mv){const lb=hintLabel();if(lb){const s='A  '+lb,BH=26,w=tw(s,13)+20,bx=Math.max(4,Math.min(W-w-4,ox-cx+T/2-w/2));let by=oy-cy-32+Math.sin(G.tick/8)*1.5;if(by<78)by=oy-cy+T+4;
+  if(G.mode==='map'&&!UI.length&&!G.busy&&!G.mv){const lb=hintLabel();if(lb){const s='B  '+lb,BH=26,w=tw(s,13)+20,bx=Math.max(4,Math.min(W-w-4,ox-cx+T/2-w/2));let by=oy-cy-32+Math.sin(G.tick/8)*1.5;if(by<78)by=oy-cy+T+4;
     ctx.fillStyle='rgba(0,0,0,.88)';ctx.beginPath();ctx.roundRect(bx,by,w,BH,7);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
     // 文字は縦中央ぞろえ（端末ごとのフォント高さの差で下が見切れないように）
-    ctx.font='13px '+FONT;ctx.textBaseline='middle';ctx.fillStyle='#ffd23f';ctx.fillText('A',bx+10,by+BH/2+.5);ctx.fillStyle='#fff';ctx.fillText(lb,bx+10+tw('A  ',13),by+BH/2+.5);ctx.textBaseline='top';}}
+    ctx.font='13px '+FONT;ctx.textBaseline='middle';ctx.fillStyle='#ffd23f';ctx.fillText('B',bx+10,by+BH/2+.5);ctx.fillStyle='#fff';ctx.fillText(lb,bx+10+tw('B  ',13),by+BH/2+.5);ctx.textBaseline='top';}}
   if(G.mode==='map'&&G.pc){
     ctx.globalAlpha=.92;box(8,8,236,64);ctx.globalAlpha=1;
     text(`HP ${G.pc.hp}/${G.pc.mhp}  MP ${G.pc.mp}/${G.pc.mmp}`,22,18,G.pc.hp<=G.pc.mhp/4?'#ff6':'#fff',15);
@@ -198,7 +198,7 @@ function drawTitle(){
   const cs=['hero','vb','mayor','minister','hermit','gal','rogue'];
   try{if(clearedList().includes('cat'))cs.push('cat_mike');}catch(e){}
   cs.forEach((s,i)=>drawChar(ctx,W/2-cs.length*20+i*40,230+Math.sin(G.tick/10+i)*4,s,0,0));
-  if((G.tick>>5)&1)text('PRESS  A  (タップ)',W/2-tw('PRESS  A  (タップ)',20)/2,360,'#fff',20);
+  if((G.tick>>5)&1)text('PRESS  B  (タップ)',W/2-tw('PRESS  B  (タップ)',20)/2,360,'#fff',20);
   text('ぼうけんは ゆうしゃ から はじまる……？',W/2-tw('ぼうけんは ゆうしゃ から はじまる……？',14)/2,400,'#8af',14);
 }
 function drawCard(){

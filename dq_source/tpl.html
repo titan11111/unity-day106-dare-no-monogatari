@@ -28,8 +28,8 @@ button.on,.pad.on{background:#6a7cff;transform:scale(.94)}
   width:calc(var(--u) + var(--B) + var(--u)*.14);height:calc(var(--B) + var(--u)*.5);opacity:var(--op);z-index:2}
 #ab button{position:absolute;border-radius:50%;font-size:calc(var(--u)*.3)}
 #ab button::after{content:'';position:absolute;inset:calc(var(--hit)*-1);border-radius:50%}   /* 見た目より広い当たり判定 */
-#ab button[data-k=a]{right:0;bottom:0;width:var(--u);height:var(--u);background:#2a2f66}
-#ab button[data-k=b]{left:0;bottom:calc(var(--u)*.5);width:var(--B);height:var(--B)}
+#ab button.a{right:0;bottom:0;width:var(--u);height:var(--u);background:#2a2f66}
+#ab button.b{left:0;bottom:calc(var(--u)*.5);width:var(--B);height:var(--B)}
 #ab button.run{left:0;bottom:0;width:var(--B);height:calc(var(--u)*.38);border-radius:calc(var(--u)*.19);font-size:max(11px,calc(var(--u)*.17));border-width:2px;line-height:1;white-space:nowrap;overflow:visible}
 #ab button.run.on{background:#e0a030;color:#000;transform:none}
 #ctl.swap #dp{left:auto;right:calc(env(safe-area-inset-right) + var(--pad))}
@@ -93,7 +93,7 @@ button.on,.pad.on{background:#6a7cff;transform:scale(.94)}
 <div id="ctl">
 <div id="dp"><span></span><button data-k="u">▲</button><span></span><button data-k="l">◀</button><span></span><button data-k="r">▶</button><span></span><button data-k="d">▼</button><span></span></div>
 <div id="dpz"></div>
-<div id="ab"><button class="run" data-k="run">はしる</button><button class="b" data-k="b">B</button><button data-k="a">A</button></div>
+<div id="ab"><button class="run" data-k="run">はしる</button><button class="b" data-k="a" aria-label="B">B</button><button class="a" data-k="b" aria-label="A">A</button></div>
 </div></div>
 <script>
 /*JS*/
